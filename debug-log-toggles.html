@@ -80,22 +80,22 @@
 <noscript><link href="assets/screen-noscript.css" media="screen" rel="stylesheet"></noscript>
 <link href="https://github.com/Kozea/Radicale/releases.atom" rel="alternate" title="Radicale Releases" type="application/atom+xml">
 <link href="assets/icon.png" rel="icon" type="image/png">
-<title>Radicale "3.0" Documentation</title>
+<title>Radicale "debug-log-toggles" Documentation</title>
 <meta content="Free and Open-Source CalDAV and CardDAV Server" name="description">
 <script src="assets/navigation.js"></script>
 <script src="assets/document-branches.js"></script>
 <script src="assets/narrow-menu.js"></script>
 <script src="assets/navigation-scroll-fix.js"></script>
 <script>
-    const documentBranch = "3.0";
-    const documentBranches = ["1.1", "2.1", "3.0", "master"];
+    const documentBranch = "debug-log-toggles";
+    const documentBranches = ["debug-log-toggles", "master"];
 </script>
 <header>
 <div class="logoContainer">
 <h1>
             Radicale
             <span class="documentBranch">
-<span>3.0</span>
+<span>debug-log-toggles</span>
 <select></select>
 </span>
 </h1>
@@ -244,14 +244,14 @@
 <section class="level4" id="getting-started//installation">
 <h4>Installation <a class="headerlink" href="#getting-started//installation">&para;</a></h4>
 <p>Radicale is really easy to install and works out-of-the-box.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1"></a>$ <span class="ex">python3</span> -m pip install --upgrade radicale</span>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1"></a>$ <span class="ex">python3</span> -m pip install --upgrade https://github.com/Kozea/Radicale/archive/master.tar.gz</span>
 <span id="cb1-2"><a href="#cb1-2"></a>$ <span class="ex">python3</span> -m radicale --storage-filesystem-folder=~/.var/lib/radicale/collections</span></code></pre></div>
 <p>When the server is launched, open <a href="http://localhost:5232/">http://localhost:5232/</a> in your browser! You can login with any username and password.</p>
 <p>Want more? Check the <a href="#tutorials">tutorials</a> and the <a href="#documentation">documentation</a>.</p>
 </section>
 <section class="level4" id="getting-started//whats-new">
 <h4>What's New? <a class="headerlink" href="#getting-started//whats-new">&para;</a></h4>
-<p>Read the <a href="https://github.com/Kozea/Radicale/blob/3.0.x/NEWS.md">changelog on GitHub.</a></p>
+<p>Read the <a href="https://github.com/Kozea/Radicale/blob/master/NEWS.md">changelog on GitHub.</a></p>
 </section>
 </section>
 <section class="level2" id="tutorials">
@@ -267,7 +267,7 @@
 <p>Then open a console and type:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1"></a><span class="co"># Run the following command as root or</span></span>
 <span id="cb2-2"><a href="#cb2-2"></a><span class="co"># add the --user argument to only install for the current user</span></span>
-<span id="cb2-3"><a href="#cb2-3"></a>$ <span class="ex">python3</span> -m pip install --upgrade radicale</span>
+<span id="cb2-3"><a href="#cb2-3"></a>$ <span class="ex">python3</span> -m pip install --upgrade https://github.com/Kozea/Radicale/archive/master.tar.gz</span>
 <span id="cb2-4"><a href="#cb2-4"></a>$ <span class="ex">python3</span> -m radicale --storage-filesystem-folder=~/.var/lib/radicale/collections</span></code></pre></div>
 <p>Victory! Open <a href="http://localhost:5232/">http://localhost:5232/</a> in your browser! You can log in with any username and password.</p>
 </section>
@@ -275,7 +275,7 @@
 <h4>Windows <a class="headerlink" href="#tutorials/simple-5-minute-setup/windows">&para;</a></h4>
 <p>The first step is to install Python. Go to <a href="https://python.org">python.org</a> and download the latest version of Python 3. Then run the installer. On the first window of the installer, check the "Add Python to PATH" box and click on "Install now". Wait a couple of minutes, it's done!</p>
 <p>Launch a command prompt and type:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1"></a>C:\Users\User&gt; python -m pip install --upgrade radicale</span>
+<div class="sourceCode" id="cb3"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1"></a>C:\Users\User&gt; python -m pip install --upgrade https://github.<span class="fu">com</span>/Kozea/Radicale/archive/master.<span class="fu">tar</span>.<span class="fu">gz</span></span>
 <span id="cb3-2"><a href="#cb3-2"></a>C:\Users\User&gt; python -m radicale --storage-filesystem-folder=~/radicale/collections</span></code></pre></div>
 <p>Victory! Open <a href="http://localhost:5232/">http://localhost:5232/</a> in your browser! You can log in with any username and password.</p>
 </section>
@@ -1082,7 +1082,7 @@ user2:password2
 </section>
 <section class="level4" id="contribute//documentation">
 <h4>Documentation <a class="headerlink" href="#contribute//documentation">&para;</a></h4>
-<p>To change or complement the documentation create a pull request to <a href="https://github.com/Kozea/Radicale/blob/3.0.x/DOCUMENTATION.md">DOCUMENTATION.md</a>.</p>
+<p>To change or complement the documentation create a pull request to <a href="https://github.com/Kozea/Radicale/blob/master/DOCUMENTATION.md">DOCUMENTATION.md</a>.</p>
 </section>
 </section>
 <section class="level2" id="download">
