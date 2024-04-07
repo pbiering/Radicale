@@ -3,6 +3,7 @@
 # Copyright © 2008 Pascal Halter
 # Copyright © 2008-2017 Guillaume Ayoub
 # Copyright © 2017-2018 Unrud <unrud@outlook.com>
+# Copyright © 2024-2024 Peter Bieringer <pb@bieringer.de>
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,6 +21,7 @@
 import collections
 import itertools
 import posixpath
+import datetime
 import socket
 import xml.etree.ElementTree as ET
 from http import client
@@ -343,7 +345,12 @@ class ApplicationPartPropfind(ApplicationBase):
             self, items: Iterable[types.CollectionOrItem], user: str
             ) -> Iterator[Tuple[types.CollectionOrItem, str]]:
         """Get items from request that user is allowed to access."""
+        item_count = 0
+        item_count_begin = datetime.datetime.now()
+        if (self._profiling):
+            logger.info("profiling/PROPFIND/_collect_allowed_items: begin")
         for item in items:
+            item_count = item_count + 1
             if isinstance(item, storage.BaseCollection):
                 path = pathutils.unstrip_path(item.path, True)
                 if item.tag:
@@ -374,6 +381,9 @@ class ApplicationPartPropfind(ApplicationBase):
                 repr(user) if user else "anonymous user", status, target)
             if permission:
                 yield item, permission
+        item_count_end = datetime.datetime.now()
+        if (self._profiling):
+            logger.info("profiling/PROPFIND/_collect_allowed_items: end %d items in %.3f seconds", item_count, (item_count_end - item_count_begin).total_seconds())
 
     def do_PROPFIND(self, environ: types.WSGIEnviron, base_prefix: str,
                     path: str, user: str) -> types.WSGIResponse:
@@ -404,8 +414,14 @@ class ApplicationPartPropfind(ApplicationBase):
             allowed_items = self._collect_allowed_items(items_iter, user)
             headers = {"DAV": httputils.DAV_HEADERS,
                        "Content-Type": "text/xml; charset=%s" % self._encoding}
+            xml_propfind_begin = datetime.datetime.now()
+            if (self._profiling):
+                logger.info("profiling/PROPFIND/_xml_propfind: begin")
             xml_answer = xml_propfind(base_prefix, path, xml_content,
                                       allowed_items, user, self._encoding)
+            xml_propfind_end = datetime.datetime.now()
+            if (self._profiling):
+                logger.info("profiling/PROPFIND/_xml_propfind: end after %.3f seconds", (xml_propfind_end - xml_propfind_begin).total_seconds())
             if xml_answer is None:
                 return httputils.NOT_ALLOWED
             return client.MULTI_STATUS, headers, self._xml_response(xml_answer)

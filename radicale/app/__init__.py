@@ -3,6 +3,7 @@
 # Copyright © 2008 Pascal Halter
 # Copyright © 2008-2017 Guillaume Ayoub
 # Copyright © 2017-2019 Unrud <unrud@outlook.com>
+# Copyright © 2024-2024 Peter Bieringer <pb@bieringer.de>
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -69,6 +70,7 @@ class Application(ApplicationPartDelete, ApplicationPartHead,
     _auth_realm: str
     _extra_headers: Mapping[str, str]
     _permit_delete_collection: bool
+    _profiling: bool
 
     def __init__(self, configuration: config.Configuration) -> None:
         """Initialize Application.
@@ -86,7 +88,9 @@ class Application(ApplicationPartDelete, ApplicationPartHead,
             "server", "max_content_length")
         self._auth_realm = configuration.get("auth", "realm")
         self._permit_delete_collection = configuration.get("rights", "permit_delete_collection")
+        self._profiling = configuration.get("logging", "profiling")
         logger.info("permit delete of collection: %s", self._permit_delete_collection)
+        logger.info("profiling: %s", self._permit_delete_collection)
         self._extra_headers = dict()
         for key in self.configuration.options("headers"):
             self._extra_headers[key] = configuration.get("headers", key)

@@ -114,6 +114,9 @@
 # Value: debug | info | warning | error | critical
 #level = info
 
+# Enable profiling (on info level)
+#profiling = True
+
 # Don't include passwords in logs
 #mask_passwords = True
 
