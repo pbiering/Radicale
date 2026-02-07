@@ -2043,6 +2043,49 @@ is thrown instead of returning the results.
 
 Default: 10000
 
+#### [sharing]
+
+_(>= 3.7.0)_
+
+##### type
+
+_(>= 3.7.0)_
+
+Sharing database type
+
+One of:
+ * `none`
+ * `csv`
+ * `sqlite`
+
+Default: `none`
+
+##### database_filename
+
+_(>= 3.7.0)_
+
+Sharing database path
+
+Default:
+ * type `csv`: `(filesystem_folder)/collection-db/sharing.csv`
+ * type `sqlite`: `(filesystem_folder)/collection-db/sharing.sqlite`
+
+##### collection_by_token
+
+_(>= 3.7.0)_
+
+Share collection by token
+
+Default: `false`
+
+##### collection_by_map
+
+_(>= 3.7.0)_
+
+Share collection by map
+
+Default: `false`
+
 ## Supported Clients
 
 Radicale has been tested with:
