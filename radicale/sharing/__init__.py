@@ -14,12 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Radicale.  If not, see <http://www.gnu.org/licenses/>.
 
+import io
+import json
 import re
 
-from radicale import (utils)
+from csv import DictWriter
+from http import client
+from urllib.parse import parse_qs
+
+from radicale import (httputils, utils)
 from radicale.log import logger
 
 INTERNAL_TYPES: Sequence[str] = ("csv", "sqlite", "mock", "none")
+
+DB_FIELDS = ['type', 'path_token', 'path_mapped', 'owner', 'user', 'permissions', 'enabled', 'hidden', 'created', 'last_updated']
 
 def load(configuration: "config.Configuration") -> "BaseSharing":
     """Load the sharing module chosen in configuration."""
@@ -59,7 +67,7 @@ class BaseSharing:
         else:
             logger.info("sharing database info: (not provided)")
 
-    # overloadable functions
+    ## overloadable functions
     def init_database(self) -> bool:
         """ initialize database """
         return None
@@ -76,7 +84,11 @@ class BaseSharing:
         """ retrieve target and attributes by map """
         return None
 
-    # static functions
+    def get_sharing_list_by_type_user(self, share_type, user) -> [dict | None]:
+        """ retrieve sharing list by type and user """
+        return None
+
+    ## static sharing functions
     def sharing_collection_resolver(self, path) -> [dict | None]:
         if self.sharing_collection_by_token:
             result = self.sharing_collection_by_token_resolver(path)
@@ -129,3 +141,88 @@ class BaseSharing:
             logger.debug("TRACE/sharing_by_map: not active")
             return {"mapped": False}
 
+    ## POST API
+    def post(self, environ: types.WSGIEnviron, base_prefix: str, path: str, user: str) -> types.WSGIResponse:
+        """POST request.
+
+        ``base_prefix`` is sanitized and never ends with "/".
+
+        ``path`` is sanitized and always starts with "/.sharing"
+
+        ``user`` is empty for anonymous users.
+
+        """
+        if user == "":
+            # anonymous users are not allowed
+            return httputils.NOT_ALLOWED
+
+        logger.debug("TRACE/sharing/API: called by authenticated user: %r", user)
+        # read POST data
+        try:
+            request_body = httputils.read_request_body(self.configuration, environ)
+        except RuntimeError as e:
+            logger.warning("Bad POST request on %r (read_request_body): %s", path, e, exc_info=True)
+            return httputils.BAD_REQUEST
+        except socket.timeout:
+            logger.debug("Client timed out", exc_info=True)
+            return httputils.REQUEST_TIMEOUT
+
+        # parse body according to content-type
+        content_type = environ.get("CONTENT_TYPE", "")
+        if 'application/json' in content_type:
+            try:
+                request_data = json.loads(request_body)
+            except json.JSONDecodeError:
+                return httputils.BAD_REQUEST
+            logger.debug("TRACE/sharing/API/POST (json): %r", f"{request_data}")
+        elif 'application/x-www-form-urlencoded' in content_type:
+            request_data = parse_qs(request_body)
+            logger.debug("TRACE/sharing/API/POST (form): %r", f"{request_data}")
+        else:
+            return httputils.BAD_REQUEST
+
+        ## action dispatcher
+        if not 'action' in request_data:
+            # mandatory
+            return httputils.BAD_REQUEST
+
+
+        if request_data['action'][0] == "list":
+            logger.debug("TRACE/sharing/API/POST/action: list")
+            if not 'format' in request_data:
+                output_format = "csv"
+            else:
+                output_format = request_data['format'][0]
+
+            if not 'type' in request_data:
+                share_type = "*" # any
+            else:
+                share_type = request_data['type'][0]
+
+            result = self.get_sharing_list_by_type_user(share_type, user)
+
+            logger.debug("TRACE/sharing/API/POST output format: %r", output_format)
+            if output_format == "csv":
+                answer = io.StringIO()
+                writer = DictWriter(answer, fieldnames=DB_FIELDS)
+                writer.writeheader()
+                for entry in result:
+                    writer.writerow(entry)
+                headers = {
+                    "Content-Type": "text/csv"
+                }
+                return client.OK, headers, answer.getvalue(), None
+            elif output_format == "json":
+                answer = json.dumps(result)
+                headers = {
+                    "Content-Type": "text/json"
+                }
+                return client.OK, headers, answer, None
+            else:
+                return httputils.BAD_REQUEST
+
+        else:
+            # default
+            return httputils.BAD_REQUEST
+
+        return httputils.METHOD_NOT_ALLOWED
