@@ -107,7 +107,7 @@ class Access:
     _rights: rights.BaseRights
     _parent_permissions: Optional[str]
 
-    def __init__(self, rights: rights.BaseRights, user: str, path: str
+    def __init__(self, rights: rights.BaseRights, user: str, path: str, permissions_filter: str = None
                  ) -> None:
         self._rights = rights
         self.user = user
@@ -115,6 +115,14 @@ class Access:
         self.parent_path = pathutils.unstrip_path(
             posixpath.dirname(pathutils.strip_path(path)), True)
         self.permissions = self._rights.authorization(self.user, self.path)
+        if permissions_filter is not None:
+            # filter permissions
+            permissions_filtered = ""
+            for p in self.permissions:
+                if p in permissions_filter:
+                    permissions_filtered += p
+            logger.debug("TRACE/Access: permissions filtered: %r by %r to %r", self.permissions, permissions_filter, permissions_filtered)
+            self.permissions = permissions_filtered
         self._parent_permissions = None
 
     @property
