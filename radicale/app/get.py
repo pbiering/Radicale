@@ -22,7 +22,7 @@ import posixpath
 from http import client
 from urllib.parse import quote
 
-from radicale import httputils, pathutils, storage, types, xmlutils
+from radicale import httputils, pathutils, sharing, storage, types, xmlutils
 from radicale.app.base import Access, ApplicationBase
 from radicale.log import logger
 
@@ -76,7 +76,20 @@ class ApplicationPartGet(ApplicationBase):
                 return httputils.redirect(location, client.MOVED_PERMANENTLY)
             # Dispatch /.web path to web module
             return self._web.get(environ, base_prefix, path, user)
-        access = Access(self._rights, user, path)
+        # Sharing by token or map
+        result = self._sharing.sharing_collection_resolver(path)
+        if result is None:
+            return httputils.NOT_FOUND
+        else:
+            if result['mapped']:
+                # overwrite and run through extended permission check
+                path = result['path']
+                user = result['user']
+                permissions_filter = result['permissions']
+                access = Access(self._rights, user, path, permissions_filter)
+            else:
+                # default permission check
+                access = Access(self._rights, user, path)
         if not access.check("r") and "i" not in access.permissions:
             return httputils.NOT_ALLOWED
         with self._storage.acquire_lock("r", user):
