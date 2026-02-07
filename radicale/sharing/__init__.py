@@ -112,7 +112,7 @@ class BaseSharing:
                 else:
                     # TODO add token validity checks
                     logger.debug("TRACE/sharing_by_token: supported token found in path: %r (version=%s token=%r)", path, match[1], match[2])
-                        return self.get_sharing_collection_by_token(match[1] + "/" + match[2])
+                    return self.get_sharing_collection_by_token(match[1] + "/" + match[2])
             else:
                 logger.debug("TRACE/sharing_by_token: no supported prefix found in path: %r", path)
                 return {"mapped": False}
