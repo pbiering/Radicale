@@ -111,19 +111,28 @@ class Sharing(sharing.BaseSharing):
         logger.debug("TRACE/sharing_by_map: no entry in map found for path: %r", path)
         return {"mapped": False}
 
+    def get_sharing_list_by_type_user(self, share_type, user) -> [dict | None]:
+        """ retrieve sharing list by type and user """
+        result = []
+        for row in self._map_cache:
+            if share_type != "*" and row['type'] != share_type:
+                continue
+            if row['owner'] != user:
+                continue
+            result.append(row)
+        return result
+
     ## local functions
     def _create_empty_csv(self, file) -> bool:
         with open(file, 'w', newline='') as csvfile:
-            fieldnames = ['type', 'path_token', 'path_mapped', 'owner', 'user', 'permissions', 'enabled', 'hidden', 'created', 'last_updated']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer = csv.DictWriter(csvfile, fieldnames=sharing.DB_FIELDS)
             writer.writeheader()
         return True
 
     def _load_csv(self, file) -> bool:
         logger.debug("sharing database load begin: %r", file)
         with open(file, 'r', newline='') as csvfile:
-            fieldnames = ['type', 'path_token', 'path_mapped', 'owner', 'user', 'permissions', 'enabled', 'hidden', 'created', 'last_updated']
-            reader = csv.DictReader(csvfile, fieldnames=fieldnames)
+            reader = csv.DictReader(csvfile, fieldnames=sharing.DB_FIELDS)
             self._lines = 0
             for row in reader:
                 self._map_cache.append(row)                
