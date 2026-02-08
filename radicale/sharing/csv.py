@@ -114,13 +114,15 @@ class Sharing(sharing.BaseSharing):
         logger.debug("TRACE/sharing_by_map: no entry in map found for path: %r", path)
         return {"mapped": False}
 
-    def get_sharing_list_by_type_user(self, share_type, user) -> [dict | None]:
+    def get_sharing_list_by_type_user(self, share_type, user, path_token = None) -> [dict | None]:
         """ retrieve sharing list by type and user """
         result = []
         for row in self._map_cache:
             if share_type != "*" and row['type'] != share_type:
                 continue
             if row['owner'] != user:
+                continue
+            if path_token and row['path_token'] != path_token:
                 continue
             result.append(row)
         return result
@@ -176,6 +178,78 @@ class Sharing(sharing.BaseSharing):
                 return {"status": "permission-denied"}
             logger.debug("TRACE/sharing_by_token/delete: user=%r token=%r index=%d", user, token, index)
             self._map_cache.pop(index)
+
+            ## TODO: add locking
+            if self._write_csv(self._sharing_db_file):
+                logger.debug("TRACE/sharing_by_token: write CSV done")
+                return {"status": "success"}
+            logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
+            return {"status": "error"}
+
+        return {"status": "not-found"}
+
+    def disable_sharing_by_token(self, user: str, token) -> [dict | None]:
+        """ disable sharing by token """
+        logger.debug("TRACE/sharing_by_token/disable: user=%r token=%r", user, token)
+
+        # lookup token
+        token_found = False
+        index = 0
+        for row in self._map_cache:
+            if row['type'] != "token":
+                pass
+            if row['path_token'] != token:
+                pass
+            else:
+                token_found = True
+                break
+            index += 1
+
+        if token_found:
+            if row['owner'] != user:
+                return {"status": "permission-denied"}
+            logger.debug("TRACE/sharing_by_token/disable: user=%r token=%r index=%d", user, token, index)
+            row['enabled'] = str(False)
+            # remove
+            self._map_cache.pop(index)
+            # readd
+            self._map_cache.append(row)
+
+            ## TODO: add locking
+            if self._write_csv(self._sharing_db_file):
+                logger.debug("TRACE/sharing_by_token: write CSV done")
+                return {"status": "success"}
+            logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
+            return {"status": "error"}
+
+        return {"status": "not-found"}
+
+    def enable_sharing_by_token(self, user: str, token) -> [dict | None]:
+        """ enable sharing by token """
+        logger.debug("TRACE/sharing_by_token/enable: user=%r token=%r", user, token)
+
+        # lookup token
+        token_found = False
+        index = 0
+        for row in self._map_cache:
+            if row['type'] != "token":
+                pass
+            if row['path_token'] != token:
+                pass
+            else:
+                token_found = True
+                break
+            index += 1
+
+        if token_found:
+            if row['owner'] != user:
+                return {"status": "permission-denied"}
+            logger.debug("TRACE/sharing_by_token/enable: user=%r token=%r index=%d", user, token, index)
+            row['enabled'] = str(True)
+            # remove
+            self._map_cache.pop(index)
+            # readd
+            self._map_cache.append(row)
 
             ## TODO: add locking
             if self._write_csv(self._sharing_db_file):
