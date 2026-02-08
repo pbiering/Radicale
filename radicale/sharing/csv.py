@@ -25,7 +25,9 @@ from radicale.log import logger
 class Sharing(sharing.BaseSharing):
     _lines: int = 0
     _map_cache = []
+    _sharing_db_file: str
 
+    ## Overloaded functions
     def init_database(self) -> bool:
         logger.debug("sharing database initialization for type 'csv'")
         sharing_db_file = self.configuration.get("sharing", "database_filename")
@@ -66,6 +68,7 @@ class Sharing(sharing.BaseSharing):
             logger.error("sharing database load failed: %r (%r)", sharing_db_file, e)
             return False
         logger.info("sharing database load successful: %r (lines=%d)", sharing_db_file, self._lines)
+        self._sharing_db_file = sharing_db_file
         return True
 
     def get_database_info(self) -> [ dict | None]:
@@ -122,6 +125,67 @@ class Sharing(sharing.BaseSharing):
             result.append(row)
         return result
 
+    def add_sharing_by_token(self, user: str, token: str, path_mapped: str, timestamp: int, permissions: str = "r", enabled: bool = True) -> bool:
+        """ add sharing by token """
+        logger.debug("TRACE/sharing_by_token/add: user=%r token=%r path_mapped=%r permissions=%r enabled=%s", user, token, path_mapped, permissions, enabled)
+        # check for duplicate token
+        for row in self._map_cache:
+            if row['type'] != "token":
+                continue
+            if row['path_token'] == token:
+                logger.warning("sharing/add_sharing_by_token: token already exists: user=%r token=%r path_mapped=%r", user, token, path_mapped)
+                return False
+        row = { "type": "token",
+                "path_token": token,
+                "path_mapped": path_mapped,
+                "owner": user,
+                "user": user,
+                "permissions": permissions,
+                "enabled": str(enabled),
+                "hidden": "False",
+                "created": str(timestamp),
+                "last_updated": str(timestamp)
+        }
+        logger.debug("TRACE/sharing_by_token: add row: %r", row)
+        ## TODO: add locking
+        self._map_cache.append(row)
+        if self._write_csv(self._sharing_db_file):
+            logger.debug("TRACE/sharing_by_token: write CSV done")
+            return True
+        logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
+        return False
+
+    def delete_sharing_by_token(self, user: str, token) -> [dict | None]:
+        """ delete sharing by token """
+        logger.debug("TRACE/sharing_by_token/delete: user=%r token=%r", user, token)
+        # lookup token
+        token_found = False
+        index = 0
+        for row in self._map_cache:
+            if row['type'] != "token":
+                pass
+            if row['path_token'] != token:
+                pass
+            else:
+                token_found = True
+                break
+            index += 1
+
+        if token_found:
+            if row['owner'] != user:
+                return {"status": "permission-denied"}
+            logger.debug("TRACE/sharing_by_token/delete: user=%r token=%r index=%d", user, token, index)
+            self._map_cache.pop(index)
+
+            ## TODO: add locking
+            if self._write_csv(self._sharing_db_file):
+                logger.debug("TRACE/sharing_by_token: write CSV done")
+                return {"status": "success"}
+            logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
+            return {"status": "error"}
+
+        return {"status": "not-found"}
+
     ## local functions
     def _create_empty_csv(self, file) -> bool:
         with open(file, 'w', newline='') as csvfile:
@@ -135,7 +199,21 @@ class Sharing(sharing.BaseSharing):
             reader = csv.DictReader(csvfile, fieldnames=sharing.DB_FIELDS)
             self._lines = 0
             for row in reader:
-                self._map_cache.append(row)                
+                # check for duplicates
+                dup = False
+                for row_cached in self._map_cache:
+                    if row == row_cached:
+                        dup = True
+                        break
+                if dup:
+                    continue
+                self._map_cache.append(row)
                 self._lines += 1
         logger.debug("sharing database load end: %r", file)
+        return True
+
+    def _write_csv(self, file) -> bool:
+        with open(file, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=sharing.DB_FIELDS)
+            writer.writerows(self._map_cache)
         return True
