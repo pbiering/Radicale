@@ -43,7 +43,7 @@ class TestSharingApiSanity(BaseTest):
         BaseTest.setup_method(self)
         self.htpasswd_file_path = os.path.join(self.colpath, ".htpasswd")
         encoding: str = self.configuration.get("encoding", "stock")
-        htpasswd_content = "owner:ownerpw"
+        htpasswd_content = "owner:ownerpw\nuser:userpw"
         with open(self.htpasswd_file_path, "w", encoding=encoding) as f:
             f.write(htpasswd_content)
 
@@ -117,6 +117,7 @@ class TestSharingApiSanity(BaseTest):
             #  valid API
             _, headers, _ = self.request("POST", path, check=400, login="%s:%s" % ("owner", "ownerpw"))
 
+
     def test_sharing_api_list_with_auth(self) -> None:
         """POST/list with authentication."""
         self.configure({"auth": {"type": "htpasswd",
@@ -159,8 +160,9 @@ class TestSharingApiSanity(BaseTest):
             assert '"lines": 0' in answer
             assert '"content": null' in answer
 
-    def test_sharing_api_add_token(self) -> None:
-        """create a token-based share."""
+
+    def test_sharing_api_token_basic(self) -> None:
+        """share-by-token API tests."""
         self.configure({"auth": {"type": "htpasswd",
                                  "htpasswd_filename": self.htpasswd_file_path,
                                  "htpasswd_encryption": "plain"},
@@ -168,121 +170,471 @@ class TestSharingApiSanity(BaseTest):
                                     "type": "csv",
                                     "collection_by_map": "True",
                                     "collection_by_token": "True"},
-                        "logging": {"request_header_on_debug": "true",
-                                    "request_content_on_debug": "true"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
-        action = "add"
+
         sharingtype = "token"
-        path = "/.sharing/v1/" + sharingtype + "/" + action
-        path_list = "/.sharing/v1/" + sharingtype + "/list"
-        path_delete = "/.sharing/v1/" + sharingtype + "/delete"
-        path_disable = "/.sharing/v1/" + sharingtype + "/disable"
-        path_enable = "/.sharing/v1/" + sharingtype + "/enable"
-        # without path_mapped
+        path_base = "/.sharing/v1/" + sharingtype + "/"
+
+        logging.debug("*** create token without PathMapped (form) -> should fail")
         form_array:str = []
-        content_type = "application/x-www-form-urlencoded"
         data = "\n".join(form_array)
-        _, headers, answer = self.request("POST", path, check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        ## 1
-        # with path_mapped
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+
+        logging.debug("*** create token without PathMapped (json) -> should fail")
+        form_dict = {}
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+
+        logging.debug("*** create token#1")
         form_array:str = []
-        form_array.append("path_mapped=/owner/collection1")
-        content_type = "application/x-www-form-urlencoded"
+        form_array.append("PathMapped=/owner/collection1")
         data = "\n".join(form_array)
-        _, headers, answer = self.request("POST", path, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "create", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        assert "token=" in answer
+        assert "Status=success" in answer
+        assert "PathOrToken=" in answer
         # extract token
-        match = re.search('token=(.+)', answer)
+        match = re.search('PathOrToken=(.+)', answer)
         token1 = match[1]
         logging.debug("received token %r", token1)
-        ## 2
-        # with path_mapped
-        form_array:str = []
-        form_array.append("path_mapped=/owner/collection2")
-        content_type = "application/x-www-form-urlencoded"
-        data = "\n".join(form_array)
-        _, headers, answer = self.request("POST", path, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+
+        logging.debug("*** create token#2")
+        form_dict = {}
+        form_dict['PathMapped'] = "/owner/collection2"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "create", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        assert "token=" in answer
+        assert "Status=success" in answer
+        assert "Token=" in answer
         # extract token
-        match = re.search('token=(.+)', answer)
+        match = re.search('Token=(.+)', answer)
         token2 = match[1]
         logging.debug("received token %r", token2)
-        ## lookup token#1
+
+        logging.debug("*** lookup token#1 (form->text)")
         form_array:str = []
-        form_array.append("token=" + token1)
-        content_type = "application/x-www-form-urlencoded"
+        form_array.append("PathOrToken=" + token1)
         data = "\n".join(form_array)
-        path_list = "/.sharing/v1/" + sharingtype + "/list"
-        _, headers, answer = self.request("POST", path_list, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        assert "lines=1" in answer
+        assert "Status=success" in answer
+        assert "Lines=1" in answer
+        assert "/owner/collection1" in answer
+
+        logging.debug("*** lookup token#2 (json->text")
+        form_dict = {}
+        content_type = "application/json"
+        form_dict['PathOrToken'] = token2
+        content_type = "application/json"
+        data = json.dumps(form_dict)
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        logging.debug("received answer %r", answer)
+        assert "Status=success" in answer
+        assert "Lines=1" in answer
         assert "/owner/collection2" in answer
-        ## delete #1
-        form_array:str = []
-        form_array.append("token=" + token1)
-        content_type = "application/x-www-form-urlencoded"
-        data = "\n".join(form_array)
-        _, headers, answer = self.request("POST", path_delete, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+
+        logging.debug("*** lookup token#2 (json->json)")
+        form_dict = {}
+        content_type = "application/json"
+        form_dict['PathOrToken'] = token2
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        ## lookup token#1
+        result = json.loads(answer)
+        assert "success" in result['Status']
+        assert result['Lines'] == 1
+        assert "/owner/collection2" in result['Content'][0]['PathMapped']
+
+        logging.debug("*** delete token#1 (form->text)")
         form_array:str = []
-        form_array.append("token=" + token1)
-        content_type = "application/x-www-form-urlencoded"
+        form_array.append("PathOrToken=" + token1)
         data = "\n".join(form_array)
-        path_list = "/.sharing/v1/" + sharingtype + "/list"
-        _, headers, answer = self.request("POST", path_list, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "delete", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        assert "lines=0" in answer
-        ## lookup tokens
+        assert "Status=success" in answer
+
+        logging.debug("*** lookup token#1 (form->text) -> should not be there anymore")
         form_array:str = []
-        content_type = "application/x-www-form-urlencoded"
+        form_array.append("PathOrToken=" + token1)
         data = "\n".join(form_array)
-        _, headers, answer = self.request("POST", path_list, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        assert "lines=1" in answer
-        ## disable token#2
+        assert "Status=not-found" in answer
+        assert "Lines=0" in answer
+
+        logging.debug("*** lookup tokens (form->text) -> still one should be there")
         form_array:str = []
-        form_array.append("token=" + token2)
-        content_type = "application/x-www-form-urlencoded"
         data = "\n".join(form_array)
-        _, headers, answer = self.request("POST", path_disable, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        ## lookup token#2, check for not enabled
+        assert "Status=success" in answer
+        assert "Lines=1" in answer
+
+        logging.debug("*** disable token#2 (form->text)")
         form_array:str = []
-        form_array.append("token=" + token2)
-        content_type = "application/x-www-form-urlencoded"
+        form_array.append("PathOrToken=" + token2)
         data = "\n".join(form_array)
-        path_list = "/.sharing/v1/" + sharingtype + "/list"
-        _, headers, answer = self.request("POST", path_list, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "disable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        assert "lines=1" in answer
-        assert "False,False" in answer
-        ## enable token#2
+        assert "Status=success" in answer
+
+        logging.debug("*** lookup token#2 (json->json) -> check for not enabled")
+        form_dict = {}
+        form_dict['PathOrToken'] = token2
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+        assert result['Lines'] == 1
+        assert "False" in result['Content'][0]['EnabledByOwner']
+
+        logging.debug("*** enable token#2 (json->json)")
+        form_dict = {}
+        form_dict['PathOrToken'] = token2
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** lookup token#2 (form->text) -> check for enabled")
         form_array:str = []
-        form_array.append("token=" + token2)
-        content_type = "application/x-www-form-urlencoded"
+        form_array.append("PathOrToken=" + token2)
         data = "\n".join(form_array)
-        _, headers, answer = self.request("POST", path_enable, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        ## lookup token#2, check for enabled
+        assert "Status=success" in answer
+        assert "Lines=1" in answer
+        assert "True,True,False,False" in answer
+
+        logging.debug("*** hide token#2 (form->text)")
         form_array:str = []
-        form_array.append("token=" + token2)
-        content_type = "application/x-www-form-urlencoded"
+        form_array.append("PathOrToken=" + token2)
         data = "\n".join(form_array)
-        path_list = "/.sharing/v1/" + sharingtype + "/list"
-        _, headers, answer = self.request("POST", path_list, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "hide", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
         logging.debug("received answer %r", answer)
-        assert "status=success" in answer
-        assert "lines=1" in answer
-        assert "True,False" in answer
+        assert "Status=success" in answer
+
+        logging.debug("*** lookup token#2 (form->text) -> check for hidden")
+        form_array:str = []
+        form_array.append("PathOrToken=" + token2)
+        data = "\n".join(form_array)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        logging.debug("received answer %r", answer)
+        assert "Status=success" in answer
+        assert "Lines=1" in answer
+        assert "True,True,True,False" in answer
+
+        logging.debug("*** unhide token#2 (json->json)")
+        form_dict = {}
+        form_dict['PathOrToken'] = token2
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "unhide", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** lookup token#2 (json->json) -> check for not hidden")
+        form_dict = {}
+        form_dict['PathOrToken'] = token2
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+        assert result['Lines'] == 1
+        assert "False" in result['Content'][0]['HiddenByOwner']
+
+        logging.debug("*** delete token#2 (json->json)")
+        form_dict = {}
+        form_dict['PathOrToken'] = token2
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "delete", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** lookup token#2 (json->json) -> should not be there anymore")
+        form_dict = {}
+        form_dict['PathOrToken'] = token2
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "not-found" in result['Status']
+        assert result['Lines'] == 0
+
+
+    def test_sharing_api_token_usage(self) -> None:
+        """share-by-token API tests - real usage."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+
+        sharingtype = "token"
+        path_base = "/.sharing/v1/" + sharingtype + "/"
+        path_token = "/.token/"
+
+        logging.debug("*** prepare and test access")
+        self.mkcalendar("/owner/calendar.ics/", login="%s:%s" % ("owner", "ownerpw"))
+        event = get_file_content("event1.ics")
+        path = "/owner/calendar.ics/event1.ics"
+        self.put(path, event, login="%s:%s" % ("owner", "ownerpw"))
+        _, headers, answer = self.request("GET", path, check=200, login="%s:%s" % ("owner", "ownerpw"))
+
+        logging.debug("*** create token")
+        form_array:str = []
+        form_array.append("PathMapped=/owner/calendar.ics")
+        data = "\n".join(form_array)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "create", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        logging.debug("received answer %r", answer)
+        assert "Status=success" in answer
+        assert "PathOrToken=" in answer
+        # extract token
+        match = re.search('PathOrToken=(.+)', answer)
+        token = match[1]
+        logging.debug("received token %r", token)
+
+        logging.debug("*** fetch collection using invalid token (without credentials)")
+        _, headers, answer = self.request("GET", path_token + "v1/invalidtoken", check=404)
+
+        logging.debug("*** fetch collection using token (without credentials)")
+        _, headers, answer = self.request("GET", path_token + token, check=200)
+        assert "UID:event" in answer
+
+        logging.debug("*** disable token (form->text)")
+        form_array:str = []
+        form_array.append("PathOrToken=" + token)
+        data = "\n".join(form_array)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "disable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        logging.debug("received answer %r", answer)
+        assert "Status=success" in answer
+
+        logging.debug("*** fetch collection using disabled token (without credentials)")
+        _, headers, answer = self.request("GET", path_token + token, check=404)
+
+        logging.debug("*** enable token (form->text)")
+        form_array:str = []
+        form_array.append("PathOrToken=" + token)
+        data = "\n".join(form_array)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        logging.debug("received answer %r", answer)
+        assert "Status=success" in answer
+
+        logging.debug("*** fetch collection using token (without credentials)")
+        _, headers, answer = self.request("GET", path_token + token, check=200)
+        assert "UID:event" in answer
+
+        logging.debug("*** delete token (json->json)")
+        form_dict = {}
+        form_dict['PathOrToken'] = token
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "delete", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** fetch collection using deleted token (without credentials)")
+        _, headers, answer = self.request("GET", path_token + token, check=404)
+
+
+    def test_sharing_api_map_basic(self) -> None:
+        """share-by-map API basic tests."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+
+        sharingtype = "map"
+        path_base = "/.sharing/v1/" + sharingtype + "/"
+
+        logging.debug("*** create map without PathMapped (json) -> should fail")
+        form_dict = {}
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+
+        logging.debug("*** create map without PathMapped but User (json) -> should fail")
+        form_dict = {}
+        form_dict['User'] = "user"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+
+        logging.debug("*** create map without PathMapped but User and PathOrToken (json) -> should fail")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathOrToken'] = "/owner/calendar.ics"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+
+    def test_sharing_api_map_usage(self) -> None:
+        """share-by-map API usage tests."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+
+        sharingtype = "map"
+        path_base = "/.sharing/v1/" + sharingtype + "/"
+        path_share = "/user/calendar-shared-by-owner.ics"
+        path_mapped = "/owner/calendar.ics"
+
+        logging.debug("*** prepare and test access")
+        self.mkcalendar(path_mapped, login="%s:%s" % ("owner", "ownerpw"))
+        event = get_file_content("event1.ics")
+        path = path_mapped + "/event1.ics"
+        self.put(path, event, login="%s:%s" % ("owner", "ownerpw"))
+
+        logging.debug("*** create map with PathMapped and User and PathOrToken (json)")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathMapped'] = "/owner/calendar.ics"
+        form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "create", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** lookup map without filter (json->json)")
+        form_dict = {}
+        content_type = "application/json"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+        assert result['Lines'] == 1
+        assert path_share in result['Content'][0]['PathOrToken']
+        assert path_mapped in result['Content'][0]['PathMapped']
+        assert "owner" in result['Content'][0]['Owner']
+        assert "user" in result['Content'][0]['User']
+
+        logging.debug("*** fetch collection (without credentials)")
+        _, headers, answer = self.request("GET", path_mapped, check=401)
+
+        logging.debug("*** fetch collection (with credentials) as owner")
+        _, headers, answer = self.request("GET", path_mapped, check=200, login="%s:%s" % ("owner", "ownerpw"))
+
+        logging.debug("*** fetch collection (with credentials) as user")
+        _, headers, answer = self.request("GET", path_mapped, check=403, login="%s:%s" % ("user", "userpw"))
+
+        logging.debug("*** fetch collection via map (with credentials) as user")
+        _, headers, answer = self.request("GET", path_share, check=200, login="%s:%s" % ("user", "userpw"))
+
+        logging.debug("*** disable map by owner (json->json)")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathMapped'] = "/owner/calendar.ics"
+        form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "disable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** fetch collection via map (with credentials) as user -> n/a")
+        _, headers, answer = self.request("GET", path_share, check=404, login="%s:%s" % ("user", "userpw"))
+
+        logging.debug("*** enable map by owner (json->json)")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathMapped'] = "/owner/calendar.ics"
+        form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** fetch collection via map (with credentials) as user")
+        _, headers, answer = self.request("GET", path_share, check=200, login="%s:%s" % ("user", "userpw"))
+
+        logging.debug("*** disable map by user (json->json)")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathMapped'] = "/owner/calendar.ics"
+        form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "disable", check=200, login="%s:%s" % ("user", "userpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** fetch collection via map (with credentials) as user -> n/a")
+        _, headers, answer = self.request("GET", path_share, check=404, login="%s:%s" % ("user", "userpw"))
+
+        logging.debug("*** delete map by user (json->json) -> fail")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathMapped'] = "/owner/calendar.ics"
+        form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "delete", check=403, login="%s:%s" % ("user", "userpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+
+        logging.debug("*** delete map by owner (json->json) -> ok")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathMapped'] = "/owner/calendar.ics"
+        form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "delete", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        ## TODO hide+unhide for REPORT
