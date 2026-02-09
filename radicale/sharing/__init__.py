@@ -18,6 +18,7 @@ import base64
 import io
 import json
 import re
+import socket
 import uuid
 
 from csv import DictWriter
@@ -25,7 +26,7 @@ from datetime import datetime
 from http import client
 from urllib.parse import parse_qs
 
-from radicale import (config, httputils, rights, utils)
+from radicale import config, httputils, rights, utils
 from radicale.app.base import Access
 from radicale.log import logger
 
@@ -386,13 +387,13 @@ class BaseSharing:
                 answer['PathOrToken'] = token
 
             elif sharetype == "map":
-                if not 'User' in request_data:
+                if 'User' not in request_data:
                     logger.warning(api_info + ": missing User")
                     return httputils.BAD_REQUEST
                 else:
                     user_share = request_data['User']
 
-                if not 'PathOrToken' in request_data:
+                if 'PathOrToken' not in request_data:
                     logger.warning(api_info + ": missing PathOrToken")
                     return httputils.BAD_REQUEST
                 else:
@@ -460,11 +461,11 @@ class BaseSharing:
                 result = self.toggle_sharing_by_token(user, request_data['PathOrToken'], action, timestamp)
 
             elif sharetype == "map":
-                if not 'User' in request_data:
+                if 'User' not in request_data:
                     logger.warning(api_info + ": missing User")
                     return httputils.BAD_REQUEST
 
-                if not 'PathOrToken' in request_data:
+                if 'PathOrToken' not in request_data:
                     logger.warning(api_info + ": missing PathOrToken")
                     return httputils.BAD_REQUEST
 
@@ -489,7 +490,7 @@ class BaseSharing:
             # default
             return httputils.BAD_REQUEST
 
-        ## output handler
+        # output handler
         logger.debug("TRACE/sharing/API/POST output format: %r", output_format)
         if output_format == "csv" or output_format == "txt":
             answer_array = []
@@ -517,6 +518,5 @@ class BaseSharing:
         else:
             # should not be reached
             return httputils.BAD_REQUEST
-
 
         return httputils.METHOD_NOT_ALLOWED

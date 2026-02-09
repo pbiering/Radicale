@@ -22,6 +22,7 @@ from radicale.log import logger
 
 """ CVS based sharing by token or map """
 
+
 class Sharing(sharing.BaseSharing):
     _lines: int = 0
     _map_cache = []
@@ -71,8 +72,8 @@ class Sharing(sharing.BaseSharing):
         self._sharing_db_file = sharing_db_file
         return True
 
-    def get_database_info(self) -> [ dict | None]:
-        database_info = { 'type': "csv" }
+    def get_database_info(self) -> [dict | None]:
+        database_info = {'type': "csv"}
         return database_info
 
     def get_sharing_collection_by_token(self, token: str) -> [dict | None]:
@@ -157,14 +158,13 @@ class Sharing(sharing.BaseSharing):
                 "TimestampUpdated": str(timestamp)
         }
         logger.debug("TRACE/sharing_by_token: add row: %r", row)
-        ## TODO: add locking
+        # TODO: add locking
         self._map_cache.append(row)
         if self._write_csv(self._sharing_db_file):
             logger.debug("TRACE/sharing_by_token: write CSV done")
             return True
         logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
         return False
-
 
     def delete_sharing_by_token(self, user: str, token: str) -> [dict | None]:
         """ delete sharing by token """
@@ -188,7 +188,7 @@ class Sharing(sharing.BaseSharing):
             logger.debug("TRACE/sharing_by_token/delete: user=%r token=%r index=%d", user, token, index)
             self._map_cache.pop(index)
 
-            ## TODO: add locking
+            # TODO: add locking
             if self._write_csv(self._sharing_db_file):
                 logger.debug("TRACE/sharing_by_token: write CSV done")
                 return {"status": "success"}
@@ -236,7 +236,7 @@ class Sharing(sharing.BaseSharing):
             # readd
             self._map_cache.append(row)
 
-            ## TODO: add locking
+            # TODO: add locking
             if self._write_csv(self._sharing_db_file):
                 logger.debug("TRACE/sharing_by_token: write CSV done")
                 return {"status": "success"}
@@ -246,7 +246,7 @@ class Sharing(sharing.BaseSharing):
         return {"status": "not-found"}
 
 
-    ## sharing by map
+    # sharing by map
     def create_sharing_by_map(self, user: str, path_share: str, path_mapped: str, user_share: str, timestamp: int, permissions: str = "r", enabled: bool = True) -> bool:
         """ create sharing by map """
         logger.debug("TRACE/sharing_by_map/create: %r of %r mapped to %r of %r permissions=%r enabled=%s", user_share, path_share, user, path_mapped, permissions, enabled)
@@ -257,28 +257,27 @@ class Sharing(sharing.BaseSharing):
             if row['PathOrToken'] == path_share and row['User'] == user_share and row['PathMapped'] == path_mapped:
                 logger.warning("sharing/add_sharing_by_map: already exists: %r of %r mapped to %r of %r", user_share, path_share, user, path_mapped)
                 return False
-        row = { "Type": "map",
-                "PathOrToken": path_share,
-                "PathMapped": path_mapped,
-                "Owner": user,
-                "User": user_share,
-                "Permissions": permissions,
-                "EnabledByOwner": str(enabled),
-                "EnabledByUser": str(True),
-                "HiddenByOwner": str(False),
-                "HiddenByUser": str(False),
-                "TimestampCreated": str(timestamp),
-                "TimestampUpdated": str(timestamp)
-        }
+        row = {"Type": "map",
+               "PathOrToken": path_share,
+               "PathMapped": path_mapped,
+               "Owner": user,
+               "User": user_share,
+               "Permissions": permissions,
+               "EnabledByOwner": str(enabled),
+               "EnabledByUser": str(True),
+               "HiddenByOwner": str(False),
+               "HiddenByUser": str(False),
+               "TimestampCreated": str(timestamp),
+               "TimestampUpdated": str(timestamp),
+              }
         logger.debug("TRACE/sharing_by_map: add row: %r", row)
-        ## TODO: add locking
+        # TODO: add locking
         self._map_cache.append(row)
         if self._write_csv(self._sharing_db_file):
             logger.debug("TRACE/sharing_by_token: write CSV done")
             return True
         logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
         return False
-
 
     def delete_sharing_by_map(self, user: str, path_share: str, path_mapped: str, user_share: str) -> [dict | None]:
         """ delete sharing by map """
@@ -302,7 +301,7 @@ class Sharing(sharing.BaseSharing):
             logger.debug("TRACE/sharing_by_map/delete: user=%r path_share=%r index=%d", user, path_share, index)
             self._map_cache.pop(index)
 
-            ## TODO: add locking
+            # TODO: add locking
             if self._write_csv(self._sharing_db_file):
                 logger.debug("TRACE/sharing_by_token: write CSV done")
                 return {"status": "success"}
@@ -310,7 +309,6 @@ class Sharing(sharing.BaseSharing):
             return {"status": "error"}
 
         return {"status": "not-found"}
-
 
     def toggle_sharing_by_map(self, user: str, path_share: str, path_mapped: str, user_share: str, toggle: str, timestamp: int) -> [dict | None]:
         """ toggle sharing by map """
@@ -369,7 +367,7 @@ class Sharing(sharing.BaseSharing):
             # readd
             self._map_cache.append(row)
 
-            ## TODO: add locking
+            # TODO: add locking
             if self._write_csv(self._sharing_db_file):
                 logger.debug("TRACE/sharing_by_token: write CSV done")
                 return {"status": "success"}
@@ -378,8 +376,7 @@ class Sharing(sharing.BaseSharing):
 
         return {"status": "not-found"}
 
-
-    ## local functions
+    # local functions
     def _create_empty_csv(self, file) -> bool:
         with open(file, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=sharing.DB_FIELDS)

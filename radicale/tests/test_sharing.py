@@ -22,15 +22,10 @@ Radicale tests related to sharing.
 import json
 import logging
 import os
-import posixpath
 import re
-import urllib
-from typing import Any, Callable, ClassVar, Iterable, List, Optional, Tuple
 
-import pytest
-
-from radicale import sharing, utils
-from radicale.tests import RESPONSES, BaseTest
+from radicale import sharing
+from radicale.tests import BaseTest
 from radicale.tests.helpers import get_file_content
 
 
@@ -117,7 +112,6 @@ class TestSharingApiSanity(BaseTest):
             #  valid API
             _, headers, _ = self.request("POST", path, check=400, login="%s:%s" % ("owner", "ownerpw"))
 
-
     def test_sharing_api_list_with_auth(self) -> None:
         """POST/list with authentication."""
         self.configure({"auth": {"type": "htpasswd",
@@ -134,7 +128,7 @@ class TestSharingApiSanity(BaseTest):
             path = "/.sharing/v1/" + sharingtype + "/" + action
             _, headers, _ = self.request("POST", path, check=400, login="%s:%s" % ("owner", "ownerpw"))
             # check with request FORM response CSV
-            form_array:str = []
+            form_array: str = []
             content_type = "application/x-www-form-urlencoded"
             data = "\n".join(form_array)
             _, headers, answer = self.request("POST", path, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
@@ -160,7 +154,6 @@ class TestSharingApiSanity(BaseTest):
             assert '"Lines": 0' in answer
             assert '"Content": null' in answer
 
-
     def test_sharing_api_token_basic(self) -> None:
         """share-by-token API tests."""
         self.configure({"auth": {"type": "htpasswd",
@@ -178,7 +171,7 @@ class TestSharingApiSanity(BaseTest):
         path_base = "/.sharing/v1/" + sharingtype + "/"
 
         logging.debug("*** create token without PathMapped (form) -> should fail")
-        form_array:str = []
+        form_array: str = []
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
         _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
@@ -190,7 +183,7 @@ class TestSharingApiSanity(BaseTest):
         _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
 
         logging.debug("*** create token#1")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathMapped=/owner/collection1")
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -218,7 +211,7 @@ class TestSharingApiSanity(BaseTest):
         logging.debug("received token %r", token2)
 
         logging.debug("*** lookup token#1 (form->text)")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token1)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -254,7 +247,7 @@ class TestSharingApiSanity(BaseTest):
         assert "/owner/collection2" in result['Content'][0]['PathMapped']
 
         logging.debug("*** delete token#1 (form->text)")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token1)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -263,7 +256,7 @@ class TestSharingApiSanity(BaseTest):
         assert "Status=success" in answer
 
         logging.debug("*** lookup token#1 (form->text) -> should not be there anymore")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token1)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -273,7 +266,7 @@ class TestSharingApiSanity(BaseTest):
         assert "Lines=0" in answer
 
         logging.debug("*** lookup tokens (form->text) -> still one should be there")
-        form_array:str = []
+        form_array: str = []
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
         _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
@@ -282,7 +275,7 @@ class TestSharingApiSanity(BaseTest):
         assert "Lines=1" in answer
 
         logging.debug("*** disable token#2 (form->text)")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token2)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -313,7 +306,7 @@ class TestSharingApiSanity(BaseTest):
         assert "success" in result['Status']
 
         logging.debug("*** lookup token#2 (form->text) -> check for enabled")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token2)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -324,7 +317,7 @@ class TestSharingApiSanity(BaseTest):
         assert "True,True,False,False" in answer
 
         logging.debug("*** hide token#2 (form->text)")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token2)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -333,7 +326,7 @@ class TestSharingApiSanity(BaseTest):
         assert "Status=success" in answer
 
         logging.debug("*** lookup token#2 (form->text) -> check for hidden")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token2)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -386,7 +379,6 @@ class TestSharingApiSanity(BaseTest):
         assert "not-found" in result['Status']
         assert result['Lines'] == 0
 
-
     def test_sharing_api_token_usage(self) -> None:
         """share-by-token API tests - real usage."""
         self.configure({"auth": {"type": "htpasswd",
@@ -412,7 +404,7 @@ class TestSharingApiSanity(BaseTest):
         _, headers, answer = self.request("GET", path, check=200, login="%s:%s" % ("owner", "ownerpw"))
 
         logging.debug("*** create token")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathMapped=/owner/calendar.ics")
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -433,7 +425,7 @@ class TestSharingApiSanity(BaseTest):
         assert "UID:event" in answer
 
         logging.debug("*** disable token (form->text)")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -445,7 +437,7 @@ class TestSharingApiSanity(BaseTest):
         _, headers, answer = self.request("GET", path_token + token, check=404)
 
         logging.debug("*** enable token (form->text)")
-        form_array:str = []
+        form_array: str = []
         form_array.append("PathOrToken=" + token)
         data = "\n".join(form_array)
         content_type = "application/x-www-form-urlencoded"
@@ -469,7 +461,6 @@ class TestSharingApiSanity(BaseTest):
 
         logging.debug("*** fetch collection using deleted token (without credentials)")
         _, headers, answer = self.request("GET", path_token + token, check=404)
-
 
     def test_sharing_api_map_basic(self) -> None:
         """share-by-map API basic tests."""
@@ -637,4 +628,4 @@ class TestSharingApiSanity(BaseTest):
         result = json.loads(answer)
         assert "success" in result['Status']
 
-        ## TODO hide+unhide for REPORT
+        # TODO hide+unhide for REPORT
