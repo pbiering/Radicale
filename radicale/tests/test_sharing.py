@@ -139,16 +139,16 @@ class TestSharingApiSanity(BaseTest):
             data = "\n".join(form_array)
             _, headers, answer = self.request("POST", path, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
             logging.debug("received answer %r", answer)
-            assert "# status=success" in answer
-            assert "# lines=0" in answer
+            assert "# Status=not-found" in answer
+            assert "# Lines=0" in answer
             # check with request JSON response CSV
             json_dict: dict = {}
             content_type = "application/json"
             data = json.dumps(json_dict)
             _, headers, answer = self.request("POST", path, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
             logging.debug("received answer %r", answer)
-            assert "# status=success" in answer
-            assert "# lines=0" in answer
+            assert "# Status=not-found" in answer
+            assert "# Lines=0" in answer
             # check with request JSON response JSON
             json_dict: dict = {}
             content_type = "application/json"
@@ -156,9 +156,9 @@ class TestSharingApiSanity(BaseTest):
             data = json.dumps(json_dict)
             _, headers, answer = self.request("POST", path, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=accept)
             logging.debug("received answer %r", answer)
-            assert '"status": "success"' in answer
-            assert '"lines": 0' in answer
-            assert '"content": null' in answer
+            assert '"Status": "not-found"' in answer
+            assert '"Lines": 0' in answer
+            assert '"Content": null' in answer
 
 
     def test_sharing_api_token_basic(self) -> None:
