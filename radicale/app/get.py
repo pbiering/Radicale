@@ -77,7 +77,7 @@ class ApplicationPartGet(ApplicationBase):
             # Dispatch /.web path to web module
             return self._web.get(environ, base_prefix, path, user)
         # Sharing by token or map
-        result = self._sharing.sharing_collection_resolver(path)
+        result = self._sharing.sharing_collection_resolver(path, user)
         if result is None:
             return httputils.NOT_FOUND
         else:
