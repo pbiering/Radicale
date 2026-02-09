@@ -25,6 +25,7 @@ from typing import Optional
 from radicale import (auth, config, hook, httputils, pathutils, rights,
                       sharing, storage, types, utils, web, xmlutils)
 from radicale.log import logger
+from radicale.rights import intersect
 
 # HACK: https://github.com/tiran/defusedxml/issues/54
 import defusedxml.ElementTree as DefusedET  # isort:skip
@@ -118,11 +119,7 @@ class Access:
             posixpath.dirname(pathutils.strip_path(path)), True)
         self.permissions = self._rights.authorization(self.user, self.path)
         if permissions_filter is not None:
-            # filter permissions
-            permissions_filtered = ""
-            for p in self.permissions:
-                if p in permissions_filter:
-                    permissions_filtered += p
+            permissions_filtered = intersect(self.permissions, permissions_filter)
             logger.debug("TRACE/Access: permissions filtered: %r by %r to %r", self.permissions, permissions_filter, permissions_filtered)
             self.permissions = permissions_filtered
         self._parent_permissions = None
