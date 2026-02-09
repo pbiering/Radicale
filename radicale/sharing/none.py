@@ -24,7 +24,7 @@ class Sharing(sharing.BaseSharing):
         """ retrieve target and attributs by token """
         # default
         logger.debug("TRACE/sharing_by_token: 'none' cannot provide any map for token: %r", token)
-        return None        
+        return None
 
     def get_sharing_collection_by_map(self, path) -> [dict | None]:
         """ retrieve target and attributs by map """

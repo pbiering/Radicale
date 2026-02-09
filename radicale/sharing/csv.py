@@ -94,7 +94,7 @@ class Sharing(sharing.BaseSharing):
 
         # default
         logger.debug("TRACE/sharing_by_token: no entry in map found for token: %r", token)
-        return None        
+        return None
 
     def get_sharing_collection_by_map(self, path: str, user: str) -> [dict | None]:
         """ retrieve target and attributes by map """
