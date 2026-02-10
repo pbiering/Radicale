@@ -123,11 +123,12 @@ class TestSharingApiSanity(BaseTest):
                         "logging": {"request_header_on_debug": "true"},
                         "rights": {"type": "owner_only"}})
         action = "list"
-        for sharingtype in sharing.SHARE_TYPES:
-            # basic checks with sharingtype
-            path = "/.sharing/v1/" + sharingtype + "/" + action
+        for sharing_type in sharing.SHARE_TYPES:
+            logging.debug("*** list (without form) -> should fail")
+            path = "/.sharing/v1/" + sharing_type + "/" + action
             _, headers, _ = self.request("POST", path, check=400, login="%s:%s" % ("owner", "ownerpw"))
-            # check with request FORM response CSV
+
+            logging.debug("*** list (form -> csv)")
             form_array: str = []
             content_type = "application/x-www-form-urlencoded"
             data = "\n".join(form_array)
@@ -135,7 +136,8 @@ class TestSharingApiSanity(BaseTest):
             logging.debug("received answer %r", answer)
             assert "# Status=not-found" in answer
             assert "# Lines=0" in answer
-            # check with request JSON response CSV
+
+            logging.debug("*** list (json -> csv)")
             json_dict: dict = {}
             content_type = "application/json"
             data = json.dumps(json_dict)
@@ -143,7 +145,8 @@ class TestSharingApiSanity(BaseTest):
             logging.debug("received answer %r", answer)
             assert "# Status=not-found" in answer
             assert "# Lines=0" in answer
-            # check with request JSON response JSON
+
+            logging.debug("*** list (json -> json)")
             json_dict: dict = {}
             content_type = "application/json"
             accept = "application/json"
@@ -167,8 +170,8 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        sharingtype = "token"
-        path_base = "/.sharing/v1/" + sharingtype + "/"
+        sharing_type = "token"
+        path_base = "/.sharing/v1/" + sharing_type + "/"
 
         logging.debug("*** create token without PathMapped (form) -> should fail")
         form_array: str = []
@@ -392,8 +395,8 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        sharingtype = "token"
-        path_base = "/.sharing/v1/" + sharingtype + "/"
+        sharing_type = "token"
+        path_base = "/.sharing/v1/" + sharing_type + "/"
         path_token = "/.token/"
 
         logging.debug("*** prepare and test access")
@@ -475,8 +478,8 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        sharingtype = "map"
-        path_base = "/.sharing/v1/" + sharingtype + "/"
+        sharing_type = "map"
+        path_base = "/.sharing/v1/" + sharing_type + "/"
 
         logging.debug("*** create map without PathMapped (json) -> should fail")
         form_dict = {}
@@ -512,8 +515,8 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        sharingtype = "map"
-        path_base = "/.sharing/v1/" + sharingtype + "/"
+        sharing_type = "map"
+        path_base = "/.sharing/v1/" + sharing_type + "/"
         path_share = "/user/calendar-shared-by-owner.ics"
         path_mapped = "/owner/calendar.ics"
 
