@@ -62,7 +62,7 @@ USER_PATTERN: str = "([a-zA-Z0-9@]+)"  # TODO: extend or find better source
 
 
 def load(configuration: "config.Configuration") -> "BaseSharing":
-    """Load the sharing module chosen in configuration."""
+    """Load the sharing database module chosen in configuration."""
     return utils.load_plugin(INTERNAL_TYPES, "sharing", "Sharing", BaseSharing, configuration)
 
 
