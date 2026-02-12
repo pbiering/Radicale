@@ -34,6 +34,7 @@ class TestSharingApiSanity(BaseTest):
 
     htpasswd_file_path: str
 
+    # Setup
     def setup_method(self) -> None:
         BaseTest.setup_method(self)
         self.htpasswd_file_path = os.path.join(self.colpath, ".htpasswd")
@@ -42,6 +43,30 @@ class TestSharingApiSanity(BaseTest):
         with open(self.htpasswd_file_path, "w", encoding=encoding) as f:
             f.write(htpasswd_content)
 
+    # Helper functions
+    def _sharing_api(self, sharing_type: str, action: str, check: int, login: [str | None], data: str, content_type: str, accept_type: [str | None]):
+        path_base = "/.sharing/v1/" + sharing_type + "/"
+        _, headers, answer = self.request("POST", path_base + action, check=check, login=login, data=data, content_type=content_type, accept=accept_type)
+        logging.debug("received answer:\n%s", "\n".join(answer.splitlines()))
+        return _, headers, answer
+
+    def _sharing_api_form(self, sharing_type: str, action: str, check: int, login: [str | None], form_array: Sequence[str], accept_type: [str | None] = None):
+        data = "\n".join(form_array)
+        content_type = "application/x-www-form-urlencoded"
+        if accept_type is None:
+            accept_type = "text/plain"
+        _, headers, answer = self._sharing_api(sharing_type, action, check, login, data, content_type, accept_type)
+        return _, headers, answer
+
+    def _sharing_api_json(self, sharing_type: str, action: str, check: int, login: [str | None], form_dict: dict, accept_type: [str | None] = None):
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        if accept_type is None:
+            accept_type = "application/json"
+        _, headers, answer = self._sharing_api(sharing_type, action, check, login, data, content_type, accept_type)
+        return _, headers, answer
+
+    # Test functions
     def test_sharing_api_base_no_auth(self) -> None:
         """POST request at '/.sharing' without authentication."""
         # disabled
@@ -122,6 +147,8 @@ class TestSharingApiSanity(BaseTest):
                                     "collection_by_token": "True"},
                         "logging": {"request_header_on_debug": "true"},
                         "rights": {"type": "owner_only"}})
+        form_array: Sequence[str]
+        json_dict: dict
         action = "list"
         for sharing_type in sharing.SHARE_TYPES:
             logging.debug("*** list (without form) -> should fail")
@@ -129,13 +156,13 @@ class TestSharingApiSanity(BaseTest):
             _, headers, _ = self.request("POST", path, check=400, login="%s:%s" % ("owner", "ownerpw"))
 
             logging.debug("*** list (form -> csv)")
-            form_array: str = []
+            form_array = []
             content_type = "application/x-www-form-urlencoded"
             data = "\n".join(form_array)
             _, headers, answer = self.request("POST", path, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
             logging.debug("received answer %r", answer)
-            assert "# Status=not-found" in answer
-            assert "# Lines=0" in answer
+            assert "Status=not-found" in answer
+            assert "Lines=0" in answer
 
             logging.debug("*** list (json -> csv)")
             json_dict: dict = {}
@@ -143,8 +170,8 @@ class TestSharingApiSanity(BaseTest):
             data = json.dumps(json_dict)
             _, headers, answer = self.request("POST", path, check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
             logging.debug("received answer %r", answer)
-            assert "# Status=not-found" in answer
-            assert "# Lines=0" in answer
+            assert "Status=not-found" in answer
+            assert "Lines=0" in answer
 
             logging.debug("*** list (json -> json)")
             json_dict: dict = {}
@@ -172,26 +199,20 @@ class TestSharingApiSanity(BaseTest):
 
         sharing_type = "token"
         path_base = "/.sharing/v1/" + sharing_type + "/"
+        form_array: Sequence[str]
 
         logging.debug("*** create token without PathMapped (form) -> should fail")
-        form_array: str = []
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        form_array = []
+        _, headers, answer = self._sharing_api_form("token", "create", 400, "owner:ownerpw", form_array)
 
         logging.debug("*** create token without PathMapped (json) -> should fail")
         form_dict = {}
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        _, headers, answer = self._sharing_api_json("token", "create", 400, "owner:ownerpw", form_dict)
 
-        logging.debug("*** create token#1")
-        form_array: str = []
+        logging.debug("*** create token#1 (form->text)")
+        form_array = []
         form_array.append("PathMapped=/owner/collection1")
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "create", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "create", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
         assert "PathOrToken=" in answer
         # extract token
@@ -199,13 +220,10 @@ class TestSharingApiSanity(BaseTest):
         token1 = match[1]
         logging.debug("received token %r", token1)
 
-        logging.debug("*** create token#2")
+        logging.debug("*** create token#2 (json->text)")
         form_dict = {}
         form_dict['PathMapped'] = "/owner/collection2"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "create", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "create", 200, "owner:ownerpw", form_dict, "text/plain")
         assert "Status=success" in answer
         assert "Token=" in answer
         # extract token
@@ -214,85 +232,76 @@ class TestSharingApiSanity(BaseTest):
         logging.debug("received token %r", token2)
 
         logging.debug("*** lookup token#1 (form->text)")
-        form_array: str = []
+        form_array = []
         form_array.append("PathOrToken=" + token1)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
         assert "Lines=1" in answer
         assert "/owner/collection1" in answer
 
         logging.debug("*** lookup token#2 (json->text")
         form_dict = {}
-        content_type = "application/json"
         form_dict['PathOrToken'] = token2
-        content_type = "application/json"
-        data = json.dumps(form_dict)
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict, "text/plain")
         assert "Status=success" in answer
         assert "Lines=1" in answer
         assert "/owner/collection2" in answer
 
         logging.debug("*** lookup token#2 (json->json)")
         form_dict = {}
-        content_type = "application/json"
         form_dict['PathOrToken'] = token2
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict)
         result = json.loads(answer)
         assert "success" in result['Status']
         assert result['Lines'] == 1
         assert "/owner/collection2" in result['Content'][0]['PathMapped']
 
+        logging.debug("*** lookup tokens (form->text)")
+        form_array = []
+        _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array)
+        assert "Status=success" in answer
+        assert "Lines=2" in answer
+        assert "/owner/collection1" in answer
+        assert "/owner/collection2" in answer
+
+        logging.debug("*** lookup tokens (form->csv)")
+        form_array = []
+        _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array, "text/csv")
+        assert "Status=success" not in answer
+        assert "Lines=2" not in answer
+        assert ",".join(sharing.DB_FIELDS_V1) in answer
+        assert "/owner/collection1" in answer
+        assert "/owner/collection2" in answer
+
         logging.debug("*** delete token#1 (form->text)")
-        form_array: str = []
+        form_array = []
         form_array.append("PathOrToken=" + token1)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "delete", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "delete", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
 
         logging.debug("*** lookup token#1 (form->text) -> should not be there anymore")
-        form_array: str = []
+        form_array = []
         form_array.append("PathOrToken=" + token1)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array)
         assert "Status=not-found" in answer
         assert "Lines=0" in answer
 
         logging.debug("*** lookup tokens (form->text) -> still one should be there")
-        form_array: str = []
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        form_array = []
+        _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
         assert "Lines=1" in answer
 
         logging.debug("*** disable token#2 (form->text)")
-        form_array: str = []
+        form_array = []
         form_array.append("PathOrToken=" + token2)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "disable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "disable", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
 
         logging.debug("*** lookup token#2 (json->json) -> check for not enabled")
         form_dict = {}
         form_dict['PathOrToken'] = token2
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict)
         result = json.loads(answer)
         assert "success" in result['Status']
         assert result['Lines'] == 1
@@ -301,61 +310,43 @@ class TestSharingApiSanity(BaseTest):
         logging.debug("*** enable token#2 (json->json)")
         form_dict = {}
         form_dict['PathOrToken'] = token2
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "enable", 200, "owner:ownerpw", form_dict)
         result = json.loads(answer)
         assert "success" in result['Status']
 
         logging.debug("*** lookup token#2 (form->text) -> check for enabled")
-        form_array: str = []
+        form_array = []
         form_array.append("PathOrToken=" + token2)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
         assert "Lines=1" in answer
-        assert "True,True,False,False" in answer
+        assert "True,True,True,True" in answer
 
         logging.debug("*** hide token#2 (form->text)")
-        form_array: str = []
+        form_array = []
         form_array.append("PathOrToken=" + token2)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "hide", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "hide", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
 
         logging.debug("*** lookup token#2 (form->text) -> check for hidden")
-        form_array: str = []
+        form_array = []
         form_array.append("PathOrToken=" + token2)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
         assert "Lines=1" in answer
-        assert "True,True,True,False" in answer
+        assert "True,True,True,True" in answer
 
         logging.debug("*** unhide token#2 (json->json)")
         form_dict = {}
         form_dict['PathOrToken'] = token2
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "unhide", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "unhide", 200, "owner:ownerpw", form_dict)
         result = json.loads(answer)
         assert "success" in result['Status']
 
         logging.debug("*** lookup token#2 (json->json) -> check for not hidden")
         form_dict = {}
         form_dict['PathOrToken'] = token2
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict)
         result = json.loads(answer)
         assert "success" in result['Status']
         assert result['Lines'] == 1
@@ -364,20 +355,14 @@ class TestSharingApiSanity(BaseTest):
         logging.debug("*** delete token#2 (json->json)")
         form_dict = {}
         form_dict['PathOrToken'] = token2
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "delete", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "delete", 200, "owner:ownerpw", form_dict)
         result = json.loads(answer)
         assert "success" in result['Status']
 
         logging.debug("*** lookup token#2 (json->json) -> should not be there anymore")
         form_dict = {}
         form_dict['PathOrToken'] = token2
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict)
         result = json.loads(answer)
         assert "not-found" in result['Status']
         assert result['Lines'] == 0
@@ -420,8 +405,17 @@ class TestSharingApiSanity(BaseTest):
         token = match[1]
         logging.debug("received token %r", token)
 
+        logging.debug("*** enable token (form->text)")
+        form_array: str = []
+        form_array.append("PathOrToken=" + token)
+        data = "\n".join(form_array)
+        content_type = "application/x-www-form-urlencoded"
+        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        logging.debug("received answer %r", answer)
+        assert "Status=success" in answer
+
         logging.debug("*** fetch collection using invalid token (without credentials)")
-        _, headers, answer = self.request("GET", path_token + "v1/invalidtoken", check=404)
+        _, headers, answer = self.request("GET", path_token + "v1/invalidtoken", check=401)
 
         logging.debug("*** fetch collection using token (without credentials)")
         _, headers, answer = self.request("GET", path_token + token, check=200)
@@ -437,7 +431,7 @@ class TestSharingApiSanity(BaseTest):
         assert "Status=success" in answer
 
         logging.debug("*** fetch collection using disabled token (without credentials)")
-        _, headers, answer = self.request("GET", path_token + token, check=404)
+        _, headers, answer = self.request("GET", path_token + token, check=401)
 
         logging.debug("*** enable token (form->text)")
         form_array: str = []
@@ -463,7 +457,7 @@ class TestSharingApiSanity(BaseTest):
         assert "success" in result['Status']
 
         logging.debug("*** fetch collection using deleted token (without credentials)")
-        _, headers, answer = self.request("GET", path_token + token, check=404)
+        _, headers, answer = self.request("GET", path_token + token, check=401)
 
     def test_sharing_api_map_basic(self) -> None:
         """share-by-map API basic tests."""
@@ -551,6 +545,30 @@ class TestSharingApiSanity(BaseTest):
         assert path_mapped in result['Content'][0]['PathMapped']
         assert "owner" in result['Content'][0]['Owner']
         assert "user" in result['Content'][0]['User']
+
+        logging.debug("*** enable map by owner (json->json)")
+        form_dict = {}
+        form_dict['User'] = "owner"
+        form_dict['PathMapped'] = path_mapped
+        form_dict['PathOrToken'] = path_share
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
+
+        logging.debug("*** enable map by user (json->json)")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathMapped'] = path_mapped
+        form_dict['PathOrToken'] = path_share
+        data = json.dumps(form_dict)
+        content_type = "application/json"
+        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("user", "userpw"), data=data, content_type=content_type, accept=content_type)
+        logging.debug("received answer %r", answer)
+        result = json.loads(answer)
+        assert "success" in result['Status']
 
         logging.debug("*** fetch collection (without credentials)")
         _, headers, answer = self.request("GET", path_mapped, check=401)
