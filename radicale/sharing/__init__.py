@@ -351,10 +351,10 @@ class BaseSharing:
             return httputils.BAD_REQUEST
 
         # parameters default
-        PathOrToken: str
+        PathOrToken: Union[str | None] = None
         PathMapped: str
         Owner: str = user
-        User: str
+        User: Union[str | None] = None
         Permissions: str = ""          # no permissions by default
         EnabledByOwner: bool = False   # security by default
         HiddenByOwner:  bool = True    # security by default
@@ -408,7 +408,7 @@ class BaseSharing:
                 logger.error(api_info + ": missing PathOrToken")
                 return httputils.BAD_REQUEST
             else:
-                # optional
+                # PathOrToken is optional
                 pass
         else:
             if action == "create" and ShareType == "token":
@@ -496,11 +496,18 @@ class BaseSharing:
                     logger.info("Add sharing-by-map: access to %r not allowed for user %r", PathMapped, user)
                     return httputils.NOT_ALLOWED
 
+                if PathOrToken is None:
+                    return httputils.BAD_REQUEST
+                if User is None:
+                    return httputils.BAD_REQUEST
+
                 logger.debug("TRACE/" + api_info + ": %r (Permissions=%r PathOrToken=%r user=%r)", PathMapped, Permissions, PathOrToken, User)
                 if not self.create_sharing(
                         ShareType=ShareType,
-                        PathOrToken=PathOrToken, PathMapped=PathMapped,
-                        Owner=Owner, User=User,
+                        PathOrToken=str(PathOrToken),  # verification above that it is not None
+                        PathMapped=PathMapped,
+                        Owner=Owner,
+                        User=str(User),  # verification above that it is not None
                         Permissions=Permissions,
                         EnabledByOwner=EnabledByOwner, HiddenByOwner=HiddenByOwner,
                         EnabledByUser=EnabledByUser, HiddenByUser=HiddenByUser,
@@ -514,16 +521,19 @@ class BaseSharing:
         elif action == "delete":
             logger.debug("TRACE/" + api_info + ": start")
 
+            if PathOrToken is None:
+                return httputils.BAD_REQUEST
+
             if ShareType == "token":
                 result = self.delete_sharing(
                        ShareType=ShareType,
-                       PathOrToken=PathOrToken,
+                       PathOrToken=str(PathOrToken),  # verification above that it is not None
                        Owner=Owner)
 
             elif ShareType == "map":
                 result = self.delete_sharing(
                        ShareType=ShareType,
-                       PathOrToken=PathOrToken,
+                       PathOrToken=str(PathOrToken),  # verification above that it is not None
                        PathMapped=PathMapped,
                        Owner=Owner,
                        User=User)
@@ -547,9 +557,12 @@ class BaseSharing:
         elif action in API_SHARE_TOGGLES_V1:
             logger.debug("TRACE/sharing/API/POST/" + action)
 
+            if PathOrToken is None:
+                return httputils.BAD_REQUEST
+
             result = self.toggle_sharing(
                    ShareType=ShareType,
-                   PathOrToken=PathOrToken,
+                   PathOrToken=str(PathOrToken),  # verification above that it is not None
                    OwnerOrUser=user,  # authenticated user
                    User=User,         # provided user for selection
                    Action=action,
@@ -573,6 +586,7 @@ class BaseSharing:
 
         # output handler
         logger.debug("TRACE/sharing/API/POST output format: %r", output_format)
+        logger.debug("TRACE/sharing/API/POST answer: %r", answer)
         if output_format == "csv" or output_format == "txt":
             answer_array = []
             if output_format == "txt":
