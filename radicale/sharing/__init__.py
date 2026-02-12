@@ -546,6 +546,7 @@ class BaseSharing:
                    ShareType=ShareType,
                    PathOrToken=PathOrToken,
                    OwnerOrUser=user,  # authenticated user
+                   User=User,         # provided user for selection
                    Action=action,
                    Timestamp=Timestamp)
 
