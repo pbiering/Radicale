@@ -25,8 +25,9 @@ from csv import DictWriter
 from datetime import datetime
 from http import client
 from urllib.parse import parse_qs
+from typing import (Sequence)
 
-from radicale import config, httputils, rights, utils
+from radicale import config, httputils, rights, utils, types
 from radicale.app.base import Access
 from radicale.log import logger
 
@@ -66,7 +67,6 @@ def load(configuration: "config.Configuration") -> "BaseSharing":
     return utils.load_plugin(INTERNAL_TYPES, "sharing", "Sharing", BaseSharing, configuration)
 
 
-
 class BaseSharing:
 
     configuration: "config.Configuration"
@@ -94,6 +94,7 @@ class BaseSharing:
             if self.init_database() is False:
                 exit(1)
         except Exception as e:
+            logger.error("sharing database cannot be initialized: %r", e)
             exit(1)
         database_info = self.get_database_info()
         if database_info:
@@ -106,21 +107,21 @@ class BaseSharing:
         """ initialize database """
         return None
 
-    def get_database_info(self) -> [ dict | None]:
+    def get_database_info(self) -> [dict | None]:
         """ retrieve database information """
         return None
 
     def list_sharing(self,
                      ShareType: [str | None] = None,
-                     PathOrToken: [str | None ] = None, PathMapped: [str | None ] = None,
-                     Owner: [str | None ] = None, User: [str | None ] = None) -> bool:
+                     PathOrToken: [str | None] = None, PathMapped: [str | None] = None,
+                     Owner: [str | None] = None, User: [str | None] = None) -> bool:
         """ retrieve sharing """
         return None
 
     def get_sharing(self,
                     ShareType: str,
                     PathOrToken: str,
-                    User: [str | None ] = None) -> [dict | None]:
+                    User: [str | None] = None) -> [dict | None]:
         """ retrieve sharing target and attributes by map """
         return None
 
@@ -130,7 +131,7 @@ class BaseSharing:
                        Owner: str, User: str,
                        Permissions: str = "r",
                        EnabledByOwner: bool = False, EnabledByUser: bool = False,
-                       HiddenByOwner:  bool = True , HiddenByUser:  bool = True,
+                       HiddenByOwner:  bool = True, HiddenByUser:  bool = True,
                        Timestamp: int = 0) -> bool:
         """ create sharing """
         return None
@@ -139,7 +140,7 @@ class BaseSharing:
                        ShareType: str,
                        PathOrToken: str,
                        Owner: str,
-                       PathMapped: [str | None] = None, 
+                       PathMapped: [str | None] = None,
                        User: [str | None] = None) -> [dict | None]:
         """ delete sharing """
         return None
@@ -156,7 +157,7 @@ class BaseSharing:
         return None
 
     # static sharing functions
-    def sharing_collection_resolver(self, path:str, user: str) -> [dict | None]:
+    def sharing_collection_resolver(self, path: str, user: str) -> [dict | None]:
         if self.sharing_collection_by_token:
             result = self.sharing_collection_by_token_resolver(path)
             if result is None:
@@ -213,7 +214,7 @@ class BaseSharing:
             logger.debug("TRACE/sharing_by_map: not active")
             return {"mapped": False}
 
-    ## POST API
+    # POST API
     def post(self, environ: types.WSGIEnviron, base_prefix: str, path: str, user: str) -> types.WSGIResponse:
         """POST request.
 
@@ -278,7 +279,7 @@ class BaseSharing:
 
         # check for valid ShareTypes
         if ShareType:
-            if not ShareType in SHARE_TYPES:
+            if ShareType not in SHARE_TYPES:
                 logger.debug("TRACE/sharing/API: ShareType not whitelisted: %r", ShareType)
                 return httputils.NOT_FOUND
 
@@ -292,7 +293,7 @@ class BaseSharing:
             return httputils.NOT_FOUND
 
         # check for valid API hooks
-        if not action in API_HOOKS_V1:
+        if action not in API_HOOKS_V1:
             logger.debug("TRACE/sharing/API: action not whitelisted: %r", action)
             return httputils.NOT_FOUND
 
@@ -429,7 +430,7 @@ class BaseSharing:
         answer['ApiVersion'] = "1"
         Timestamp = int((datetime.now() - datetime(1970, 1, 1)).total_seconds())
 
-        ## action: list
+        # action: list
         if action == "list":
             logger.debug("TRACE/" + api_info + ": start")
             if 'PathOrToken' in request_data:
@@ -447,10 +448,10 @@ class BaseSharing:
                 answer['Status'] = "success"
             answer['Content'] = result
 
-        ## action: create
+        # action: create
         elif action == "create":
             logger.debug("TRACE/" + api_info + ": start")
-            if not 'Permissions' in request_data:
+            if 'Permissions' not in request_data:
                 Permissions = "r"
             else:
                 Permissions = request_data['Permissions']
@@ -465,7 +466,7 @@ class BaseSharing:
                     logger.info("Add sharing-by-token: access to %r not allowed for user %r", PathMapped, user)
                     return httputils.NOT_ALLOWED
 
-                ## v1: create uuid token with 2x 32 bytes = 256 bit
+                # v1: create uuid token with 2x 32 bytes = 256 bit
                 token = "v1/" + str(base64.urlsafe_b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes), 'utf-8')
 
                 logger.debug("TRACE/" + api_info + ": %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
@@ -499,13 +500,14 @@ class BaseSharing:
                         Owner=Owner, User=User,
                         Permissions=Permissions,
                         EnabledByOwner=EnabledByOwner, HiddenByOwner=HiddenByOwner,
+                        EnabledByUser=EnabledByUser, HiddenByUser=HiddenByUser,
                         Timestamp=Timestamp):
                     logger.error(api_info + ": %r (%r) -> %r (%r)", PathMapped, User, PathOrToken, Owner)
                     return httputils.BAD_REQUEST
 
                 answer['Status'] = "success"
 
-        ## action: delete
+        # action: delete
         elif action == "delete":
             logger.debug("TRACE/" + api_info + ": start")
 
@@ -523,7 +525,7 @@ class BaseSharing:
                        Owner=Owner,
                        User=User)
 
-            ## result handling
+            # result handling
             if result['status'] == "not-found":
                 return httputils.NOT_FOUND
             elif result['status'] == "permission-denied":
@@ -538,7 +540,7 @@ class BaseSharing:
                     logger.info("Delete sharing-by-map: %r of user %r not successful", request_data['PathOrToken'], request_data['User'])
                 return httputils.BAD_REQUEST
 
-        ## action: TOGGLE
+        # action: TOGGLE
         elif action in API_SHARE_TOGGLES_V1:
             logger.debug("TRACE/sharing/API/POST/" + action)
 
