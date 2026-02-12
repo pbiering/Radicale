@@ -16,7 +16,7 @@
 
 import csv
 import os
-from typing import Sequence
+from typing import Union
 
 from radicale import sharing
 from radicale.log import logger
@@ -26,7 +26,7 @@ from radicale.log import logger
 
 class Sharing(sharing.BaseSharing):
     _lines: int = 0
-    _map_cache = []
+    _sharing_cache: list[dict] = []
     _sharing_db_file: str
 
     # Overloaded functions
@@ -73,17 +73,17 @@ class Sharing(sharing.BaseSharing):
         self._sharing_db_file = sharing_db_file
         return True
 
-    def get_database_info(self) -> [dict | None]:
+    def get_database_info(self) -> Union[dict | None]:
         database_info = {'type': "csv"}
         return database_info
 
     def get_sharing(self,
                     ShareType: str,
                     PathOrToken: str,
-                    User: [str | None] = None) -> [dict | None]:
+                    User: Union[str | None] = None) -> Union[dict | None]:
         """ retrieve sharing target and attributes by map """
         # Lookup
-        for row in self._map_cache:
+        for row in self._sharing_cache:
             if row['ShareType'] != ShareType:
                 continue
             elif row['PathOrToken'] != PathOrToken:
@@ -96,25 +96,27 @@ class Sharing(sharing.BaseSharing):
                 continue
             PathMapped = row['PathMapped']
             Owner = row['Owner']
-            User = row['User']
+            UserShare = row['User']
             Permissions = row['Permissions']
-            logger.debug("TRACE/sharing: map %r to %r (Owner=%r User=%r Permissions=%r)", PathOrToken, PathMapped, Owner, User, Permissions)
+            logger.debug("TRACE/sharing: map %r to %r (Owner=%r User=%r Permissions=%r)", PathOrToken, PathMapped, Owner, UserShare, Permissions)
             return {
                     "mapped": True,
                     "PathOrToken": PathOrToken,
                     "PathMapped": PathMapped,
                     "Owner": Owner,
-                    "User": User,
+                    "User": UserShare,
                     "Permissions": Permissions}
         return None
 
     def list_sharing(self,
-                     ShareType: [str | None] = None,
-                     PathOrToken: [str | None] = None, PathMapped: [str | None] = None,
-                     Owner: [str | None] = None, User: [str | None] = None) -> [Sequence(str) | None]:
+                     ShareType: Union[str | None] = None,
+                     PathOrToken: Union[str | None] = None, PathMapped: Union[str | None] = None,
+                     Owner: Union[str | None] = None, User: Union[str | None] = None) -> list[dict]:
         """ retrieve sharing """
+        row: dict
         result = []
-        for row in self._map_cache:
+
+        for row in self._sharing_cache:
             if ShareType and row['ShareType'] != ShareType:
                 continue
             elif Owner and row['Owner'] != Owner:
@@ -137,10 +139,12 @@ class Sharing(sharing.BaseSharing):
                        HiddenByOwner:  bool = True, HiddenByUser:  bool = True,
                        Timestamp: int = 0) -> bool:
         """ create sharing """
+        row: dict
+
         if ShareType == "token":
             logger.debug("TRACE/sharing/token/create: PathOrToken=%r Owner=%r PathMapped=%r User=%r Permissions=%r", PathOrToken, Owner, PathMapped, User, Permissions)
             # check for duplicate token entry
-            for row in self._map_cache:
+            for row in self._sharing_cache:
                 if row['ShareType'] != "token":
                     continue
                 if row['PathOrToken'] == PathOrToken:
@@ -150,7 +154,7 @@ class Sharing(sharing.BaseSharing):
         elif ShareType == "map":
             logger.debug("TRACE/sharing/map/create: PathOrToken=%r Owner=%r PathMapped=%r User=%r Permissions=%r", PathOrToken, Owner, PathMapped, User, Permissions)
             # check for duplicate map entry
-            for row in self._map_cache:
+            for row in self._sharing_cache:
                 if row['ShareType'] != "map":
                     continue
                 if row['PathMapped'] == PathMapped and row['User'] == User:
@@ -172,7 +176,7 @@ class Sharing(sharing.BaseSharing):
                "TimestampUpdated": str(Timestamp)}
         logger.debug("TRACE/sharing/*/create: add row: %r", row)
         # TODO: add locking
-        self._map_cache.append(row)
+        self._sharing_cache.append(row)
         if self._write_csv(self._sharing_db_file):
             logger.debug("TRACE/sharing_by_token: write CSV done")
             return True
@@ -182,8 +186,8 @@ class Sharing(sharing.BaseSharing):
     def delete_sharing(self,
                        ShareType: str,
                        PathOrToken: str, Owner: str,
-                       PathMapped: [str | None] = None,
-                       User: [str | None] = None) -> [dict | None]:
+                       PathMapped: Union[str | None] = None,
+                       User: Union[str | None] = None) -> dict:
         """ delete sharing """
         if ShareType == "token":
             logger.debug("TRACE/sharing/token/delete: PathOrToken=%r Owner=%r", PathOrToken, Owner)
@@ -195,7 +199,7 @@ class Sharing(sharing.BaseSharing):
         # lookup token
         found = False
         index = 0
-        for row in self._map_cache:
+        for row in self._sharing_cache:
             if row['ShareType'] != ShareType:
                 pass
             elif row['PathOrToken'] != PathOrToken:
@@ -220,7 +224,7 @@ class Sharing(sharing.BaseSharing):
             if row['Owner'] != Owner:
                 return {"status": "permission-denied"}
             logger.debug("TRACE/sharing/*/delete: Owner=%r PathOrToken=%r index=%d", Owner, PathOrToken, index)
-            self._map_cache.pop(index)
+            self._sharing_cache.pop(index)
 
             # TODO: add locking
             if self._write_csv(self._sharing_db_file):
@@ -236,19 +240,22 @@ class Sharing(sharing.BaseSharing):
                        PathOrToken: str,
                        OwnerOrUser: str,
                        Action: str,
-                       PathMapped: [str | None] = None,
-                       User: [str | None] = None,
-                       Timestamp: int = 0) -> [dict | None]:
+                       PathMapped: Union[str | None] = None,
+                       User: Union[str | None] = None,
+                       Timestamp: int = 0) -> dict:
         """ toggle sharing """
+        row: dict
+
         if Action not in sharing.API_SHARE_TOGGLES_V1:
-            return False
+            # should not happen
+            raise
 
         logger.debug("TRACE/sharing/*/" + Action + ": ShareType=%r OwnerOrUser=%r User=%r PathOrToken=%r PathMapped=%r Action=%r", ShareType, OwnerOrUser, User, PathOrToken, PathMapped, Action)
 
         # lookup entry
         found = False
         index = 0
-        for row in self._map_cache:
+        for row in self._sharing_cache:
             logger.debug("TRACE/sharing/*/" + Action + ": check: %r", row)
             if row['ShareType'] != ShareType:
                 pass
@@ -305,9 +312,9 @@ class Sharing(sharing.BaseSharing):
             row['TimestampUpdated'] = str(Timestamp)
 
             # remove
-            self._map_cache.pop(index)
+            self._sharing_cache.pop(index)
             # readd
-            self._map_cache.append(row)
+            self._sharing_cache.append(row)
 
             # TODO: add locking
             if self._write_csv(self._sharing_db_file):
@@ -319,13 +326,13 @@ class Sharing(sharing.BaseSharing):
             return {"status": "not-found"}
 
     # local functions
-    def _create_empty_csv(self, file) -> bool:
+    def _create_empty_csv(self, file: str) -> bool:
         with open(file, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=sharing.DB_FIELDS_V1)
             writer.writeheader()
         return True
 
-    def _load_csv(self, file) -> bool:
+    def _load_csv(self, file: str) -> bool:
         logger.debug("sharing database load begin: %r", file)
         with open(file, 'r', newline='') as csvfile:
             reader = csv.DictReader(csvfile, fieldnames=sharing.DB_FIELDS_V1)
@@ -333,19 +340,19 @@ class Sharing(sharing.BaseSharing):
             for row in reader:
                 # check for duplicates
                 dup = False
-                for row_cached in self._map_cache:
+                for row_cached in self._sharing_cache:
                     if row == row_cached:
                         dup = True
                         break
                 if dup:
                     continue
-                self._map_cache.append(row)
+                self._sharing_cache.append(row)
                 self._lines += 1
         logger.debug("sharing database load end: %r", file)
         return True
 
-    def _write_csv(self, file) -> bool:
+    def _write_csv(self, file: str) -> bool:
         with open(file, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=sharing.DB_FIELDS_V1)
-            writer.writerows(self._map_cache)
+            writer.writerows(self._sharing_cache)
         return True
