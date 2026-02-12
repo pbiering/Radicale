@@ -28,7 +28,7 @@ class Sharing(sharing.BaseSharing):
     _map_cache = []
     _sharing_db_file: str
 
-    ## Overloaded functions
+    # Overloaded functions
     def init_database(self) -> bool:
         logger.debug("sharing database initialization for type 'csv'")
         sharing_db_file = self.configuration.get("sharing", "database_filename")
@@ -79,7 +79,7 @@ class Sharing(sharing.BaseSharing):
     def get_sharing(self,
                     ShareType: str,
                     PathOrToken: str,
-                    User: [str | None ] = None) -> [dict | None]:
+                    User: [str | None] = None) -> [dict | None]:
         """ retrieve sharing target and attributes by map """
         # Lookup
         for row in self._map_cache:
@@ -108,7 +108,7 @@ class Sharing(sharing.BaseSharing):
         return None
 
     def list_sharing(self,
-                     ShareType: [str | None] =  None,
+                     ShareType: [str | None] = None,
                      PathOrToken: [str | None] = None, PathMapped: [str | None] = None,
                      Owner: [str | None] = None, User: [str | None] = None) -> bool:
         """ retrieve sharing """
@@ -133,7 +133,7 @@ class Sharing(sharing.BaseSharing):
                        Owner: str, User: str,
                        Permissions: str = "r",
                        EnabledByOwner: bool = False, EnabledByUser: bool = False,
-                       HiddenByOwner:  bool = True , HiddenByUser:  bool = True,
+                       HiddenByOwner:  bool = True, HiddenByUser:  bool = True,
                        Timestamp: int = 0) -> bool:
         """ create sharing """
         if ShareType == "token":
@@ -157,19 +157,18 @@ class Sharing(sharing.BaseSharing):
                     logger.error("sharing/map/create: entry already exists: PathMapped=%r User=%r", PathMapped, User, Permissions)
                     return False
 
-        row = { "ShareType": ShareType,
-                "PathOrToken": PathOrToken,
-                "PathMapped": PathMapped,
-                "Owner": Owner,
-                "User": User,
-                "Permissions": Permissions,
-                "EnabledByOwner": str(EnabledByOwner),
-                "EnabledByUser": str(EnabledByUser),
-                "HiddenByOwner": str(HiddenByOwner),
-                "HiddenByUser": str(HiddenByUser),
-                "TimestampCreated": str(Timestamp),
-                "TimestampUpdated": str(Timestamp)
-        }
+        row = {"ShareType": ShareType,
+               "PathOrToken": PathOrToken,
+               "PathMapped": PathMapped,
+               "Owner": Owner,
+               "User": User,
+               "Permissions": Permissions,
+               "EnabledByOwner": str(EnabledByOwner),
+               "EnabledByUser": str(EnabledByUser),
+               "HiddenByOwner": str(HiddenByOwner),
+               "HiddenByUser": str(HiddenByUser),
+               "TimestampCreated": str(Timestamp),
+               "TimestampUpdated": str(Timestamp)}
         logger.debug("TRACE/sharing/*/create: add row: %r", row)
         # TODO: add locking
         self._map_cache.append(row)
@@ -215,7 +214,7 @@ class Sharing(sharing.BaseSharing):
                     break
             index += 1
 
-        if found == True:
+        if found:
             logger.debug("TRACE/sharing/*/delete: found index=%d", index)
             if row['Owner'] != Owner:
                 return {"status": "permission-denied"}
@@ -268,7 +267,7 @@ class Sharing(sharing.BaseSharing):
                 break
             index += 1
 
-        if found == True:
+        if found:
             # logger.debug("TRACE/sharing/*/" + Action + ": found: %r", row)
             if User and row['User'] != User:
                 return {"status": "permission-denied"}
