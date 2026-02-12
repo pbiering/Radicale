@@ -78,18 +78,15 @@ class ApplicationPartGet(ApplicationBase):
             return self._web.get(environ, base_prefix, path, user)
         # Sharing by token or map
         result = self._sharing.sharing_collection_resolver(path, user)
-        if result is None:
-            return httputils.NOT_FOUND
+        if result:
+            # overwrite and run through extended permission check
+            path = result['PathMapped']
+            user = result['Owner']
+            permissions_filter = result['Permissions']
+            access = Access(self._rights, user, path, permissions_filter)
         else:
-            if result['mapped']:
-                # overwrite and run through extended permission check
-                path = result['path']
-                user = result['user']
-                permissions_filter = result['permissions']
-                access = Access(self._rights, user, path, permissions_filter)
-            else:
-                # default permission check
-                access = Access(self._rights, user, path)
+            # default permission check
+            access = Access(self._rights, user, path)
         if not access.check("r") and "i" not in access.permissions:
             return httputils.NOT_ALLOWED
         with self._storage.acquire_lock("r", user):
