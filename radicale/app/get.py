@@ -22,7 +22,7 @@ import posixpath
 from http import client
 from urllib.parse import quote
 
-from radicale import httputils, pathutils, sharing, storage, types, xmlutils
+from radicale import httputils, pathutils, storage, types, xmlutils
 from radicale.app.base import Access, ApplicationBase
 from radicale.log import logger
 
