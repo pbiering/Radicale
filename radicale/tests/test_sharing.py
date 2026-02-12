@@ -64,6 +64,8 @@ class TestSharingApiSanity(BaseTest):
         if accept_type is None:
             accept_type = "application/json"
         _, headers, answer = self._sharing_api(sharing_type, action, check, login, data, content_type, accept_type)
+        if check == 200 and accept_type == "application/json":
+            answer = json.loads(answer)
         return _, headers, answer
 
     # Test functions
@@ -101,6 +103,7 @@ class TestSharingApiSanity(BaseTest):
                                     "collection_by_map": "True",
                                     "collection_by_token": "True"},
                         "rights": {"type": "owner_only"}})
+
         # path with no valid API hook
         for path in ["/.sharing/", "/.sharing/v9/"]:
             _, headers, _ = self.request("POST", path, check=404, login="%s:%s" % ("owner", "ownerpw"))
@@ -197,8 +200,6 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        sharing_type = "token"
-        path_base = "/.sharing/v1/" + sharing_type + "/"
         form_array: Sequence[str]
 
         logging.debug("*** create token without PathMapped (form) -> should fail")
@@ -210,8 +211,7 @@ class TestSharingApiSanity(BaseTest):
         _, headers, answer = self._sharing_api_json("token", "create", 400, "owner:ownerpw", form_dict)
 
         logging.debug("*** create token#1 (form->text)")
-        form_array = []
-        form_array.append("PathMapped=/owner/collection1")
+        form_array = ["PathMapped=/owner/collection1"]
         _, headers, answer = self._sharing_api_form("token", "create", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
         assert "PathOrToken=" in answer
@@ -221,8 +221,7 @@ class TestSharingApiSanity(BaseTest):
         logging.debug("received token %r", token1)
 
         logging.debug("*** create token#2 (json->text)")
-        form_dict = {}
-        form_dict['PathMapped'] = "/owner/collection2"
+        form_dict = {'PathMapped': "/owner/collection2"}
         _, headers, answer = self._sharing_api_json("token", "create", 200, "owner:ownerpw", form_dict, "text/plain")
         assert "Status=success" in answer
         assert "Token=" in answer
@@ -232,29 +231,25 @@ class TestSharingApiSanity(BaseTest):
         logging.debug("received token %r", token2)
 
         logging.debug("*** lookup token#1 (form->text)")
-        form_array = []
-        form_array.append("PathOrToken=" + token1)
+        form_array = ["PathOrToken=" + token1]
         _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
         assert "Lines=1" in answer
         assert "/owner/collection1" in answer
 
         logging.debug("*** lookup token#2 (json->text")
-        form_dict = {}
-        form_dict['PathOrToken'] = token2
+        form_dict = {'PathOrToken': token2}
         _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict, "text/plain")
         assert "Status=success" in answer
         assert "Lines=1" in answer
         assert "/owner/collection2" in answer
 
         logging.debug("*** lookup token#2 (json->json)")
-        form_dict = {}
-        form_dict['PathOrToken'] = token2
+        form_dict = {'PathOrToken': token2}
         _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict)
-        result = json.loads(answer)
-        assert "success" in result['Status']
-        assert result['Lines'] == 1
-        assert "/owner/collection2" in result['Content'][0]['PathMapped']
+        assert "success" in answer['Status']
+        assert answer['Lines'] == 1
+        assert "/owner/collection2" in answer['Content'][0]['PathMapped']
 
         logging.debug("*** lookup tokens (form->text)")
         form_array = []
@@ -274,14 +269,12 @@ class TestSharingApiSanity(BaseTest):
         assert "/owner/collection2" in answer
 
         logging.debug("*** delete token#1 (form->text)")
-        form_array = []
-        form_array.append("PathOrToken=" + token1)
+        form_array = ["PathOrToken=" + token1]
         _, headers, answer = self._sharing_api_form("token", "delete", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
 
         logging.debug("*** lookup token#1 (form->text) -> should not be there anymore")
-        form_array = []
-        form_array.append("PathOrToken=" + token1)
+        form_array = ["PathOrToken=" + token1]
         _, headers, answer = self._sharing_api_form("token", "list", 200, "owner:ownerpw", form_array)
         assert "Status=not-found" in answer
         assert "Lines=0" in answer
@@ -293,26 +286,22 @@ class TestSharingApiSanity(BaseTest):
         assert "Lines=1" in answer
 
         logging.debug("*** disable token#2 (form->text)")
-        form_array = []
-        form_array.append("PathOrToken=" + token2)
+        form_array = ["PathOrToken=" + token2]
         _, headers, answer = self._sharing_api_form("token", "disable", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
 
         logging.debug("*** lookup token#2 (json->json) -> check for not enabled")
-        form_dict = {}
-        form_dict['PathOrToken'] = token2
+        form_dict = {'PathOrToken': token2}
         _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict)
-        result = json.loads(answer)
-        assert "success" in result['Status']
-        assert result['Lines'] == 1
-        assert "False" in result['Content'][0]['EnabledByOwner']
+        assert "success" in answer['Status']
+        assert answer['Lines'] == 1
+        assert "False" in answer['Content'][0]['EnabledByOwner']
 
         logging.debug("*** enable token#2 (json->json)")
         form_dict = {}
         form_dict['PathOrToken'] = token2
         _, headers, answer = self._sharing_api_json("token", "enable", 200, "owner:ownerpw", form_dict)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        assert "success" in answer['Status']
 
         logging.debug("*** lookup token#2 (form->text) -> check for enabled")
         form_array = []
@@ -340,32 +329,28 @@ class TestSharingApiSanity(BaseTest):
         form_dict = {}
         form_dict['PathOrToken'] = token2
         _, headers, answer = self._sharing_api_json("token", "unhide", 200, "owner:ownerpw", form_dict)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        assert "success" in answer['Status']
 
         logging.debug("*** lookup token#2 (json->json) -> check for not hidden")
         form_dict = {}
         form_dict['PathOrToken'] = token2
         _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict)
-        result = json.loads(answer)
-        assert "success" in result['Status']
-        assert result['Lines'] == 1
-        assert "False" in result['Content'][0]['HiddenByOwner']
+        assert "success" in answer['Status']
+        assert answer['Lines'] == 1
+        assert "False" in answer['Content'][0]['HiddenByOwner']
 
         logging.debug("*** delete token#2 (json->json)")
         form_dict = {}
         form_dict['PathOrToken'] = token2
         _, headers, answer = self._sharing_api_json("token", "delete", 200, "owner:ownerpw", form_dict)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        assert "success" in answer['Status']
 
         logging.debug("*** lookup token#2 (json->json) -> should not be there anymore")
         form_dict = {}
         form_dict['PathOrToken'] = token2
         _, headers, answer = self._sharing_api_json("token", "list", 200, "owner:ownerpw", form_dict)
-        result = json.loads(answer)
-        assert "not-found" in result['Status']
-        assert result['Lines'] == 0
+        assert "not-found" in answer['Status']
+        assert answer['Lines'] == 0
 
     def test_sharing_api_token_usage(self) -> None:
         """share-by-token API tests - real usage."""
@@ -380,8 +365,9 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        sharing_type = "token"
-        path_base = "/.sharing/v1/" + sharing_type + "/"
+        form_array: Sequence[str]
+        form_dict = dict
+
         path_token = "/.token/"
 
         logging.debug("*** prepare and test access")
@@ -392,12 +378,9 @@ class TestSharingApiSanity(BaseTest):
         _, headers, answer = self.request("GET", path, check=200, login="%s:%s" % ("owner", "ownerpw"))
 
         logging.debug("*** create token")
-        form_array: str = []
+        form_array = []
         form_array.append("PathMapped=/owner/calendar.ics")
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "create", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_form("token", "create", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
         assert "PathOrToken=" in answer
         # extract token
@@ -406,12 +389,8 @@ class TestSharingApiSanity(BaseTest):
         logging.debug("received token %r", token)
 
         logging.debug("*** enable token (form->text)")
-        form_array: str = []
-        form_array.append("PathOrToken=" + token)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        form_array = ["PathOrToken=" + token]
+        _, headers, answer = self._sharing_api_form("token", "enable", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
 
         logging.debug("*** fetch collection using invalid token (without credentials)")
@@ -422,24 +401,16 @@ class TestSharingApiSanity(BaseTest):
         assert "UID:event" in answer
 
         logging.debug("*** disable token (form->text)")
-        form_array: str = []
-        form_array.append("PathOrToken=" + token)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "disable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        form_array = ["PathOrToken=" + token]
+        _, headers, answer = self._sharing_api_form("token", "disable", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
 
         logging.debug("*** fetch collection using disabled token (without credentials)")
         _, headers, answer = self.request("GET", path_token + token, check=401)
 
         logging.debug("*** enable token (form->text)")
-        form_array: str = []
-        form_array.append("PathOrToken=" + token)
-        data = "\n".join(form_array)
-        content_type = "application/x-www-form-urlencoded"
-        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
-        logging.debug("received answer %r", answer)
+        form_array = ["PathOrToken=" + token]
+        _, headers, answer = self._sharing_api_form("token", "enable", 200, "owner:ownerpw", form_array)
         assert "Status=success" in answer
 
         logging.debug("*** fetch collection using token (without credentials)")
@@ -447,14 +418,9 @@ class TestSharingApiSanity(BaseTest):
         assert "UID:event" in answer
 
         logging.debug("*** delete token (json->json)")
-        form_dict = {}
-        form_dict['PathOrToken'] = token
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "delete", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        form_dict = {'PathOrToken': token}
+        _, headers, answer = self._sharing_api_json("token", "delete", 200, "owner:ownerpw", form_dict)
+        assert "success" in answer['Status']
 
         logging.debug("*** fetch collection using deleted token (without credentials)")
         _, headers, answer = self.request("GET", path_token + token, check=401)
@@ -472,29 +438,22 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        sharing_type = "map"
-        path_base = "/.sharing/v1/" + sharing_type + "/"
+        form_array: Sequence[str]
+        form_dict = dict
 
         logging.debug("*** create map without PathMapped (json) -> should fail")
         form_dict = {}
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        _, headers, answer = self._sharing_api_json("map", "create", 400, "owner:ownerpw", form_dict)
 
         logging.debug("*** create map without PathMapped but User (json) -> should fail")
-        form_dict = {}
-        form_dict['User'] = "user"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type)
+        form_dict = {'User': "user"}
+        _, headers, answer = self._sharing_api_json("map", "create", 400, "owner:ownerpw", form_dict)
 
         logging.debug("*** create map without PathMapped but User and PathOrToken (json) -> should fail")
         form_dict = {}
         form_dict['User'] = "user"
         form_dict['PathOrToken'] = "/owner/calendar.ics"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "create", check=400, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        _, headers, answer = self._sharing_api_json("map", "create", 400, "owner:ownerpw", form_dict)
 
     def test_sharing_api_map_usage(self) -> None:
         """share-by-map API usage tests."""
@@ -509,8 +468,9 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        sharing_type = "map"
-        path_base = "/.sharing/v1/" + sharing_type + "/"
+        form_array: Sequence[str]
+        form_dict = dict
+
         path_share = "/user/calendar-shared-by-owner.ics"
         path_mapped = "/owner/calendar.ics"
 
@@ -525,50 +485,55 @@ class TestSharingApiSanity(BaseTest):
         form_dict['User'] = "user"
         form_dict['PathMapped'] = "/owner/calendar.ics"
         form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "create", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", form_dict)
+        assert "success" in answer['Status']
 
         logging.debug("*** lookup map without filter (json->json)")
         form_dict = {}
-        content_type = "application/json"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "list", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
-        result = json.loads(answer)
-        assert "success" in result['Status']
-        assert result['Lines'] == 1
-        assert path_share in result['Content'][0]['PathOrToken']
-        assert path_mapped in result['Content'][0]['PathMapped']
-        assert "owner" in result['Content'][0]['Owner']
-        assert "user" in result['Content'][0]['User']
+        _, headers, answer = self._sharing_api_json("map", "list", 200, "owner:ownerpw", form_dict)
+        assert "success" in answer['Status']
+        assert answer['Lines'] == 1
+        assert path_share in answer['Content'][0]['PathOrToken']
+        assert path_mapped in answer['Content'][0]['PathMapped']
+        assert "map" in answer['Content'][0]['ShareType']
+        assert "owner" in answer['Content'][0]['Owner']
+        assert "user" in answer['Content'][0]['User']
+        assert "False" in answer['Content'][0]['EnabledByOwner']
+        assert "False" in answer['Content'][0]['EnabledByUser']
+        assert "True" in answer['Content'][0]['HiddenByOwner']
+        assert "True" in answer['Content'][0]['HiddenByUser']
+        assert "r" in answer['Content'][0]['Permissions']
 
         logging.debug("*** enable map by owner (json->json)")
         form_dict = {}
         form_dict['User'] = "owner"
         form_dict['PathMapped'] = path_mapped
         form_dict['PathOrToken'] = path_share
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        _, headers, answer = self._sharing_api_json("map", "enable", 404, "owner:ownerpw", form_dict)
+#        assert "success" in answer['Status']
+#        assert "True" in answer['Content'][0]['EnabledByOwner']
+
+        logging.debug("*** enable map by owner for user (json->json)")
+        form_dict = {}
+        form_dict['User'] = "user"
+        form_dict['PathMapped'] = path_mapped
+        form_dict['PathOrToken'] = path_share
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "owner:ownerpw", form_dict)
 
         logging.debug("*** enable map by user (json->json)")
         form_dict = {}
         form_dict['User'] = "user"
         form_dict['PathMapped'] = path_mapped
         form_dict['PathOrToken'] = path_share
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("user", "userpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", form_dict)
+        assert "success" in answer['Status']
+
+        logging.debug("*** enable map by user for owner (json->json) -> should fail")
+        form_dict = {}
+        form_dict['User'] = "owner"
+        form_dict['PathMapped'] = path_mapped
+        form_dict['PathOrToken'] = path_share
+        _, headers, answer = self._sharing_api_json("map", "enable", 403, "user:userpw", form_dict)
 
         logging.debug("*** fetch collection (without credentials)")
         _, headers, answer = self.request("GET", path_mapped, check=401)
@@ -587,12 +552,8 @@ class TestSharingApiSanity(BaseTest):
         form_dict['User'] = "user"
         form_dict['PathMapped'] = "/owner/calendar.ics"
         form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "disable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        _, headers, answer = self._sharing_api_json("map", "disable", 200, "owner:ownerpw", form_dict)
+        assert "success" in answer['Status']
 
         logging.debug("*** fetch collection via map (with credentials) as user -> n/a")
         _, headers, answer = self.request("GET", path_share, check=404, login="%s:%s" % ("user", "userpw"))
@@ -602,12 +563,9 @@ class TestSharingApiSanity(BaseTest):
         form_dict['User'] = "user"
         form_dict['PathMapped'] = "/owner/calendar.ics"
         form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "enable", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "owner:ownerpw", form_dict)
         logging.debug("received answer %r", answer)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        assert "success" in answer['Status']
 
         logging.debug("*** fetch collection via map (with credentials) as user")
         _, headers, answer = self.request("GET", path_share, check=200, login="%s:%s" % ("user", "userpw"))
@@ -617,12 +575,8 @@ class TestSharingApiSanity(BaseTest):
         form_dict['User'] = "user"
         form_dict['PathMapped'] = "/owner/calendar.ics"
         form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "disable", check=200, login="%s:%s" % ("user", "userpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        _, headers, answer = self._sharing_api_json("map", "disable", 200, "user:userpw", form_dict)
+        assert "success" in answer['Status']
 
         logging.debug("*** fetch collection via map (with credentials) as user -> n/a")
         _, headers, answer = self.request("GET", path_share, check=404, login="%s:%s" % ("user", "userpw"))
@@ -632,10 +586,7 @@ class TestSharingApiSanity(BaseTest):
         form_dict['User'] = "user"
         form_dict['PathMapped'] = "/owner/calendar.ics"
         form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "delete", check=403, login="%s:%s" % ("user", "userpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
+        _, headers, answer = self._sharing_api_json("map", "delete", 403, "user:userpw", form_dict)
 
         logging.debug("*** delete map by owner (json->json) -> ok")
         form_dict = {}
@@ -644,9 +595,7 @@ class TestSharingApiSanity(BaseTest):
         form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
         data = json.dumps(form_dict)
         content_type = "application/json"
-        _, headers, answer = self.request("POST", path_base + "delete", check=200, login="%s:%s" % ("owner", "ownerpw"), data=data, content_type=content_type, accept=content_type)
-        logging.debug("received answer %r", answer)
-        result = json.loads(answer)
-        assert "success" in result['Status']
+        _, headers, answer = self._sharing_api_json("map", "delete", 200, "owner:ownerpw", form_dict)
+        assert "success" in answer['Status']
 
         # TODO hide+unhide for REPORT
