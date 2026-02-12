@@ -23,7 +23,7 @@ import uuid
 from csv import DictWriter
 from datetime import datetime
 from http import client
-from typing import Sequence
+from typing import Sequence, Union
 from urllib.parse import parse_qs
 
 from radicale import config, httputils, rights, types, utils
@@ -107,21 +107,21 @@ class BaseSharing:
         """ initialize database """
         return False
 
-    def get_database_info(self) -> [dict | None]:
+    def get_database_info(self) -> Union[dict, None]:
         """ retrieve database information """
         return None
 
     def list_sharing(self,
-                     ShareType: [str | None] = None,
-                     PathOrToken: [str | None] = None, PathMapped: [str | None] = None,
-                     Owner: [str | None] = None, User: [str | None] = None) -> [Sequence(str) | None]:
+                     ShareType: Union[str, None] = None,
+                     PathOrToken: Union[str | None] = None, PathMapped: Union[str | None] = None,
+                     Owner: Union[str | None] = None, User: Union[str | None] = None) -> list[dict]:
         """ retrieve sharing """
-        return None
+        return []
 
     def get_sharing(self,
                     ShareType: str,
                     PathOrToken: str,
-                    User: [str | None] = None) -> [dict | None]:
+                    User: Union[str | None] = None) -> Union[dict | None]:
         """ retrieve sharing target and attributes by map """
         return None
 
@@ -134,30 +134,30 @@ class BaseSharing:
                        HiddenByOwner:  bool = True, HiddenByUser:  bool = True,
                        Timestamp: int = 0) -> bool:
         """ create sharing """
-        return None
+        return False
 
     def delete_sharing(self,
                        ShareType: str,
                        PathOrToken: str,
                        Owner: str,
-                       PathMapped: [str | None] = None,
-                       User: [str | None] = None) -> [dict | None]:
+                       PathMapped: Union[str | None] = None,
+                       User: Union[str | None] = None) -> dict:
         """ delete sharing """
-        return None
+        return {}
 
     def toggle_sharing(self,
                        ShareType: str,
                        PathOrToken: str,
                        OwnerOrUser: str,
                        Action: str,
-                       PathMapped: [str | None] = None,
-                       User: [str | None] = None,
-                       Timestamp: int = 0) -> [dict | None]:
+                       PathMapped: Union[str | None] = None,
+                       User: Union[str | None] = None,
+                       Timestamp: int = 0) -> dict:
         """ toggle sharing """
-        return None
+        return {}
 
     # static sharing functions
-    def sharing_collection_resolver(self, path: str, user: str) -> [dict | None]:
+    def sharing_collection_resolver(self, path: str, user: str) -> Union[dict | None]:
         if self.sharing_collection_by_token:
             result = self.sharing_collection_by_token_resolver(path)
             if result is None:
@@ -181,7 +181,7 @@ class BaseSharing:
         # final
         return {"mapped": False}
 
-    def sharing_collection_by_token_resolver(self, path) -> [dict | None]:
+    def sharing_collection_by_token_resolver(self, path) -> Union[dict | None]:
         """ returning dict with mapped-flag, path, user, rights or None if invalid"""
         if self.sharing_collection_by_token:
             logger.debug("TRACE/sharing_by_token: check path: %r", path)
@@ -204,7 +204,7 @@ class BaseSharing:
             logger.debug("TRACE/sharing_by_token: not active")
             return {"mapped": False}
 
-    def sharing_collection_by_map_resolver(self, path: str, user: str) -> [dict | None]:
+    def sharing_collection_by_map_resolver(self, path: str, user: str) -> Union[dict | None]:
         """ returning dict with mapped-flag, path, user, rights or None if invalid"""
         if self.sharing_collection_by_map:
             logger.debug("TRACE/sharing/resolver/map: check path: %r", path)
@@ -351,11 +351,11 @@ class BaseSharing:
             return httputils.BAD_REQUEST
 
         # parameters default
-        PathOrToken: [str | None] = None
-        PathMapped: [str | None] = None
-        Owner: [str | None] = user
-        User: [str | None] = None
-        Permissions: [str | None] = None
+        PathOrToken: str
+        PathMapped: str
+        Owner: str = user
+        User: str
+        Permissions: str = ""          # no permissions by default
         EnabledByOwner: bool = False   # security by default
         HiddenByOwner:  bool = True    # security by default
         EnabledByUser:  bool = False   # security by default
@@ -429,6 +429,8 @@ class BaseSharing:
                 User = request_data['User']
 
         answer: dict = {}
+        result: dict = {}
+        result_array: list[dict]
         answer['ApiVersion'] = "1"
         Timestamp = int((datetime.now() - datetime(1970, 1, 1)).total_seconds())
 
@@ -438,17 +440,16 @@ class BaseSharing:
             if 'PathOrToken' in request_data:
                 PathOrToken = request_data['PathOrToken']
                 logger.debug("TRACE/" + api_info + ": filter: %r", PathOrToken)
-            result = self.list_sharing(
+            result_array = self.list_sharing(
                     ShareType=ShareType,
                     Owner=Owner,
                     PathOrToken=PathOrToken)
-            if not result:
-                answer['Lines'] = 0
+            answer['Lines'] = len(result_array)
+            if len(result_array) == 0:
                 answer['Status'] = "not-found"
             else:
-                answer['Lines'] = len(result)
                 answer['Status'] = "success"
-            answer['Content'] = result
+            answer['Content'] = result_array
 
         # action: create
         elif action == "create":
@@ -598,11 +599,11 @@ class BaseSharing:
             }
             return client.OK, headers, "\n".join(answer_array), None
         elif output_format == "json":
-            answer = json.dumps(answer)
+            answer_raw = json.dumps(answer)
             headers = {
                 "Content-Type": "text/json"
             }
-            return client.OK, headers, answer, None
+            return client.OK, headers, answer_raw, None
         else:
             # should not be reached
             return httputils.BAD_REQUEST
