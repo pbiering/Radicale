@@ -76,88 +76,101 @@ class Sharing(sharing.BaseSharing):
         database_info = {'type': "csv"}
         return database_info
 
-    def get_sharing_collection_by_token(self, token: str) -> [dict | None]:
-        """ retrieve target and attributes by token """
+    def get_sharing(self,
+                    ShareType: str,
+                    PathOrToken: str,
+                    User: [str | None ] = None) -> [dict | None]:
+        """ retrieve sharing target and attributes by map """
+        # Lookup
         for row in self._map_cache:
-            if row['Type'] != "token":
+            if row['ShareType'] != ShareType:
                 continue
-            if row['PathOrToken'] != token:
+            if row['PathOrToken'] != PathOrToken:
+                continue
+            if User and row['User'] != User:
                 continue
             if row['EnabledByOwner'] != str(True):
                 continue
             if row['EnabledByUser'] != str(True):
                 continue
-            path_mapped = row['PathMapped']
-            user = row['User']
-            permissions = row['Permissions']
-            logger.debug("TRACE/sharing_by_token: map %r to %r (user=%r, permissions=%r)", token, path_mapped, user, permissions)
-            return {"mapped": True, "path": path_mapped, "user": user, "permissions": permissions}
-
-        # default
-        logger.debug("TRACE/sharing_by_token: no entry in map found for token: %r", token)
+            PathMapped = row['PathMapped']
+            Owner = row['Owner']
+            User = row['User']
+            Permissions = row['Permissions']
+            logger.debug("TRACE/sharing: map %r to %r (Owner=%r User=%r Permissions=%r)", PathOrToken, PathMapped, Owner, User, Permissions)
+            return {
+                    "mapped": True,
+                    "PathOrToken": PathOrToken,
+                    "PathMapped": PathMapped,
+                    "Owner": Owner,
+                    "User": User,
+                    "Permissions": Permissions}
         return None
 
-    def get_sharing_collection_by_map(self, path: str, user: str) -> [dict | None]:
-        """ retrieve target and attributes by map """
-        for row in self._map_cache:
-            if row['Type'] != "map":
-                continue
-            if row['PathOrToken'] != path:
-                continue
-            if row['EnabledByOwner'] != str(True):
-                continue
-            if row['EnabledByUser'] != str(True):
-                continue
-            if row['User'] != user:
-                continue
-            # TODO: handle "hidden"
-            path_mapped = row['PathMapped']
-            user = row['Owner']
-            permissions = row['Permissions']
-            logger.debug("TRACE/sharing_by_map: map %r to %r (user=%r, permissions=%r)", path, path_mapped, user, permissions)
-            return {"mapped": True, "path": path_mapped, "user": user, "permissions": permissions}
-
-        # default
-        logger.debug("TRACE/sharing_by_map: no entry in map found for path: %r", path)
-        return {"mapped": False}
-
-    def get_sharing_list_by_type_user(self, share_type, user, path_token = None) -> [dict | None]:
-        """ retrieve sharing list by type and user """
+    def list_sharing(self,
+                     ShareType: [str | None] =  None,
+                     PathOrToken: [str | None] = None, PathMapped: [str | None] = None,
+                     Owner: [str | None] = None, User: [str | None] = None) -> bool:
+        """ retrieve sharing """
         result = []
         for row in self._map_cache:
-            if share_type != "*" and row['Type'] != share_type:
+            if ShareType and row['ShareType'] != ShareType:
                 continue
-            if row['Owner'] != user:
+            if Owner and row['Owner'] != Owner:
                 continue
-            if path_token and row['PathOrToken'] != path_token:
+            if User and row['User'] != User:
+                continue
+            if PathOrToken and row['PathOrToken'] != PathOrToken:
+                continue
+            if PathMapped and row['PathMapped'] != PathMapped:
                 continue
             result.append(row)
         return result
 
-    def create_sharing_by_token(self, user: str, token: str, path_mapped: str, timestamp: int, permissions: str = "r", enabled: bool = True) -> bool:
-        """ create sharing by token """
-        logger.debug("TRACE/sharing_by_token/create: user=%r token=%r path_mapped=%r permissions=%r enabled=%s", user, token, path_mapped, permissions, enabled)
-        # check for duplicate token
-        for row in self._map_cache:
-            if row['Type'] != "token":
-                continue
-            if row['PathOrToken'] == token:
-                logger.warning("sharing/add_sharing_by_token: token already exists: user=%r token=%r path_mapped=%r", user, token, path_mapped)
-                return False
-        row = { "Type": "token",
-                "PathOrToken": token,
-                "PathMapped": path_mapped,
-                "Owner": user,
-                "User": user,
-                "Permissions": permissions,
-                "EnabledByOwner": str(enabled),
-                "EnabledByUser": str(True),
-                "HiddenByOwner": str(False),
-                "HiddenByUser": str(False),
-                "TimestampCreated": str(timestamp),
-                "TimestampUpdated": str(timestamp)
+    def create_sharing(self,
+                       ShareType: str,
+                       PathOrToken: str, PathMapped: str,
+                       Owner: str, User: str,
+                       Permissions: str = "r",
+                       EnabledByOwner: bool = False, EnabledByUser: bool = False,
+                       HiddenByOwner:  bool = True , HiddenByUser:  bool = True,
+                       Timestamp: int = 0) -> bool:
+        """ create sharing """
+        if ShareType == "token":
+            logger.debug("TRACE/sharing/token/create: PathOrToken=%r Owner=%r PathMapped=%r User=%r Permissions=%r", PathOrToken, Owner, PathMapped, User, Permissions)
+            # check for duplicate token entry
+            for row in self._map_cache:
+                if row['ShareType'] != "token":
+                    continue
+                if row['PathOrToken'] == PathOrToken:
+                    # must be unique systemwide
+                    logger.error("sharing/token/create: PathOrToken already exists: PathOrToken=%r", PathOrToken)
+                    return False
+        elif ShareType == "map":
+            logger.debug("TRACE/sharing/map/create: PathOrToken=%r Owner=%r PathMapped=%r User=%r Permissions=%r", PathOrToken, Owner, PathMapped, User, Permissions)
+            # check for duplicate map entry
+            for row in self._map_cache:
+                if row['ShareType'] != "map":
+                    continue
+                if row['PathMapped'] == PathMapped and row['User'] == User:
+                    # must be unique systemwide
+                    logger.error("sharing/map/create: entry already exists: PathMapped=%r User=%r", PathMapped, User, Permissions)
+                    return False
+
+        row = { "ShareType": ShareType,
+                "PathOrToken": PathOrToken,
+                "PathMapped": PathMapped,
+                "Owner": Owner,
+                "User": User,
+                "Permissions": Permissions,
+                "EnabledByOwner": str(EnabledByOwner),
+                "EnabledByUser": str(EnabledByUser),
+                "HiddenByOwner": str(HiddenByOwner),
+                "HiddenByUser": str(HiddenByUser),
+                "TimestampCreated": str(Timestamp),
+                "TimestampUpdated": str(Timestamp)
         }
-        logger.debug("TRACE/sharing_by_token: add row: %r", row)
+        logger.debug("TRACE/sharing/*/create: add row: %r", row)
         # TODO: add locking
         self._map_cache.append(row)
         if self._write_csv(self._sharing_db_file):
@@ -166,202 +179,118 @@ class Sharing(sharing.BaseSharing):
         logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
         return False
 
-    def delete_sharing_by_token(self, user: str, token: str) -> [dict | None]:
-        """ delete sharing by token """
-        logger.debug("TRACE/sharing_by_token/delete: user=%r token=%r", user, token)
+    def delete_sharing(self,
+                       ShareType: str,
+                       PathOrToken: str, Owner: str,
+                       PathMapped: [str | None] = None,
+                       User: [str | None] = None) -> [dict | None]:
+        """ delete sharing """
+        if ShareType == "token":
+            logger.debug("TRACE/sharing/token/delete: PathOrToken=%r Owner=%r", PathOrToken, Owner)
+        elif ShareType == "map":
+            logger.debug("TRACE/sharing/map/delete: PathOrToken=%r Owner=%r PathMapped=%r User=%r", PathOrToken, Owner, PathMapped, User)
+        else:
+            raise  # should not be reached
+
         # lookup token
-        token_found = False
+        found = False
         index = 0
         for row in self._map_cache:
-            if row['Type'] != "token":
+            if row['ShareType'] != ShareType:
                 pass
-            if row['PathOrToken'] != token:
+            elif row['PathOrToken'] != PathOrToken:
                 pass
             else:
-                token_found = True
-                break
-            index += 1
-
-        if token_found:
-            if row['Owner'] != user:
-                return {"status": "permission-denied"}
-            logger.debug("TRACE/sharing_by_token/delete: user=%r token=%r index=%d", user, token, index)
-            self._map_cache.pop(index)
-
-            # TODO: add locking
-            if self._write_csv(self._sharing_db_file):
-                logger.debug("TRACE/sharing_by_token: write CSV done")
-                return {"status": "success"}
-            logger.warning("sharing/sharing_by_token: cannot update CSV database")
-            return {"status": "error"}
-
-        return {"status": "not-found"}
-
-
-    def toggle_sharing_by_token(self, user: str, token: str, toggle: str, timestamp: int) -> [dict | None]:
-        """ toggle sharing by token """
-        logger.debug("TRACE/sharing_by_token/" + toggle + ": user=%r token=%r", user, token)
-        if toggle not in sharing.API_SHARE_TOGGLES_V1:
-            return False
-
-        # lookup token
-        token_found = False
-        index = 0
-        for row in self._map_cache:
-            if row['Type'] != "token":
-                pass
-            if row['PathOrToken'] != token:
-                pass
-            else:
-                token_found = True
-                break
-            index += 1
-
-        if token_found:
-            if row['Owner'] != user:
-                return {"status": "permission-denied"}
-            logger.debug("TRACE/sharing_by_token/" + toggle + ": user=%r token=%r index=%d", user, token, index)
-
-            if toggle == "disable":
-                row['EnabledByOwner'] = str(False)
-            elif toggle == "enable":
-                row['EnabledByOwner'] = str(True)
-            elif toggle == "hide":
-                row['HiddenByOwner'] = str(True)
-            elif toggle == "unhide":
-                row['HiddenByOwner'] = str(False)
-            row['TimestampUpdated'] = str(timestamp)
-            # remove
-            self._map_cache.pop(index)
-            # readd
-            self._map_cache.append(row)
-
-            # TODO: add locking
-            if self._write_csv(self._sharing_db_file):
-                logger.debug("TRACE/sharing_by_token: write CSV done")
-                return {"status": "success"}
-            logger.warning("sharing/sharing_by_token: cannot update CSV database")
-            return {"status": "error"}
-
-        return {"status": "not-found"}
-
-
-    # sharing by map
-    def create_sharing_by_map(self, user: str, path_share: str, path_mapped: str, user_share: str, timestamp: int, permissions: str = "r", enabled: bool = True) -> bool:
-        """ create sharing by map """
-        logger.debug("TRACE/sharing_by_map/create: %r of %r mapped to %r of %r permissions=%r enabled=%s", user_share, path_share, user, path_mapped, permissions, enabled)
-        # check for duplicate token
-        for row in self._map_cache:
-            if row['Type'] != "map":
-                continue
-            if row['PathOrToken'] == path_share and row['User'] == user_share and row['PathMapped'] == path_mapped:
-                logger.warning("sharing/add_sharing_by_map: already exists: %r of %r mapped to %r of %r", user_share, path_share, user, path_mapped)
-                return False
-        row = {"Type": "map",
-               "PathOrToken": path_share,
-               "PathMapped": path_mapped,
-               "Owner": user,
-               "User": user_share,
-               "Permissions": permissions,
-               "EnabledByOwner": str(enabled),
-               "EnabledByUser": str(True),
-               "HiddenByOwner": str(False),
-               "HiddenByUser": str(False),
-               "TimestampCreated": str(timestamp),
-               "TimestampUpdated": str(timestamp),
-              }
-        logger.debug("TRACE/sharing_by_map: add row: %r", row)
-        # TODO: add locking
-        self._map_cache.append(row)
-        if self._write_csv(self._sharing_db_file):
-            logger.debug("TRACE/sharing_by_token: write CSV done")
-            return True
-        logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
-        return False
-
-    def delete_sharing_by_map(self, user: str, path_share: str, path_mapped: str, user_share: str) -> [dict | None]:
-        """ delete sharing by map """
-        logger.debug("TRACE/sharing_by_map/delete: user=%r path_share=%r", user, path_share)
-        # lookup token
-        token_found = False
-        index = 0
-        for row in self._map_cache:
-            if row['Type'] != "map":
-                pass
-            if row['PathOrToken'] == path_share and row['User'] == user_share and row['PathMapped'] == path_mapped:
-                token_found = True
-                break
-            else:
-                pass
-            index += 1
-
-        if token_found:
-            if row['Owner'] != user:
-                return {"status": "permission-denied"}
-            logger.debug("TRACE/sharing_by_map/delete: user=%r path_share=%r index=%d", user, path_share, index)
-            self._map_cache.pop(index)
-
-            # TODO: add locking
-            if self._write_csv(self._sharing_db_file):
-                logger.debug("TRACE/sharing_by_token: write CSV done")
-                return {"status": "success"}
-            logger.warning("sharing/sharing_by_token: cannot update CSV database")
-            return {"status": "error"}
-
-        return {"status": "not-found"}
-
-    def toggle_sharing_by_map(self, user: str, path_share: str, path_mapped: str, user_share: str, toggle: str, timestamp: int) -> [dict | None]:
-        """ toggle sharing by map """
-        logger.debug("TRACE/sharing_by_map/" + toggle + ": user=%r path_share=%r path_mapped=%r user_share=%r", user, path_share, path_mapped, user_share)
-        if toggle not in sharing.API_SHARE_TOGGLES_V1:
-            return False
-
-        # lookup token
-        token_found = False
-        index = 0
-        for row in self._map_cache:
-            if row['Type'] != "map":
-                pass
-            elif row['PathOrToken'] == path_share and row['User'] == user_share and row['PathMapped'] == path_mapped:
-                if row['Owner'] == user or row['User'] == user:
-                    token_found = True
-                    break
+                if ShareType == "map":
+                    # extra filter
+                    if row['PathMapped'] != PathMapped:
+                        pass
+                    elif row['User'] != User:
+                        pass
+                    else:
+                        found = True
+                        break
                 else:
-                    pass
-            else:
-                pass
+                    found = True
+                    break
             index += 1
 
-        if token_found:
-            if row['Owner'] == user and row['User'] == user_share:
-                # owner-triggered toggle
+        if found:
+            logger.debug("TRACE/sharing/*/delete: found index=%d", index)
+            if row['Owner'] != Owner:
+                return {"status": "permission-denied"}
+            logger.debug("TRACE/sharing/*/delete: Owner=%r PathOrToken=%r index=%d", Owner, PathOrToken, index)
+            self._map_cache.pop(index)
+
+            # TODO: add locking
+            if self._write_csv(self._sharing_db_file):
+                logger.debug("TRACE/sharing_by_token: write CSV done")
+                return {"status": "success"}
+            logger.warning("sharing/sharing_by_token: cannot update CSV database")
+            return {"status": "error"}
+        else:
+            return {"status": "not-found"}
+
+    def toggle_sharing(self,
+                       ShareType: str,
+                       PathOrToken: str,
+                       OwnerOrUser: str,
+                       Action: str,
+                       PathMapped: [str | None] = None,
+                       User: [str | None] = None,
+                       Timestamp: int = 0) -> [dict | None]:
+        """ toggle sharing """
+        if Action not in sharing.API_SHARE_TOGGLES_V1:
+            return False
+
+        logger.debug("TRACE/sharing/*/" + Action + ": OwnerOrUser=%r PathOrToken=%r Action=%r", OwnerOrUser, PathOrToken, Action)
+
+        # lookup entry
+        found = False
+        index = 0
+        for row in self._map_cache:
+            if row['ShareType'] != ShareType:
                 pass
-            elif row['User'] == user:
-                # user-triggered toggle
+            if row['PathOrToken'] != PathOrToken:
+                pass
+            else:
+                found = True
+                break
+            index += 1
+
+        if found:
+            if row['Owner'] == OwnerOrUser:
+                pass
+            elif row['User'] == OwnerOrUser:
                 pass
             else:
                 return {"status": "permission-denied"}
-            logger.debug("TRACE/sharing_by_token/" + toggle + ": user=%r path_share=%r index=%d", user, path_share, index)
 
-            if row['Owner'] == user:
-                if toggle == "disable":
+            # TODO: locking
+            if row['Owner'] == OwnerOrUser:
+                logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": Owner=%r PathOrToken=%r index=%d", OwnerOrUser, PathOrToken, index)
+                if Action == "disable":
                     row['EnabledByOwner'] = str(False)
-                elif toggle == "enable":
+                elif Action == "enable":
                     row['EnabledByOwner'] = str(True)
-                elif toggle == "hide":
+                elif Action == "hide":
                     row['HiddenByOwner'] = str(True)
-                elif toggle == "unhide":
+                elif Action == "unhide":
                     row['HiddenByOwner'] = str(False)
-            elif row['User'] == user:
-                if toggle == "disable":
+                row['TimestampUpdated'] = str(Timestamp)
+            if row['User'] == OwnerOrUser:
+                logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": User=%r PathOrToken=%r index=%d", OwnerOrUser, PathOrToken, index)
+                if Action == "disable":
                     row['EnabledByUser'] = str(False)
-                elif toggle == "enable":
+                elif Action == "enable":
                     row['EnabledByUser'] = str(True)
-                elif toggle == "hide":
+                elif Action == "hide":
                     row['HiddenByUser'] = str(True)
-                elif toggle == "unhide":
+                elif Action == "unhide":
                     row['HiddenByUser'] = str(False)
-            row['TimestampUpdated'] = str(timestamp)
+
+            row['TimestampUpdated'] = str(Timestamp)
+
             # remove
             self._map_cache.pop(index)
             # readd
@@ -369,12 +298,12 @@ class Sharing(sharing.BaseSharing):
 
             # TODO: add locking
             if self._write_csv(self._sharing_db_file):
-                logger.debug("TRACE/sharing_by_token: write CSV done")
+                logger.debug("TRACE: write CSV done")
                 return {"status": "success"}
-            logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
+            logger.error("sharing: cannot update CSV database")
             return {"status": "error"}
-
-        return {"status": "not-found"}
+        else:
+            return {"status": "not-found"}
 
     # local functions
     def _create_empty_csv(self, file) -> bool:
