@@ -85,13 +85,13 @@ class Sharing(sharing.BaseSharing):
         for row in self._map_cache:
             if row['ShareType'] != ShareType:
                 continue
-            if row['PathOrToken'] != PathOrToken:
+            elif row['PathOrToken'] != PathOrToken:
                 continue
-            if User and row['User'] != User:
+            elif User and row['User'] != User:
                 continue
-            if row['EnabledByOwner'] != str(True):
+            elif row['EnabledByOwner'] != str(True):
                 continue
-            if row['EnabledByUser'] != str(True):
+            elif row['EnabledByUser'] != str(True):
                 continue
             PathMapped = row['PathMapped']
             Owner = row['Owner']
@@ -116,13 +116,13 @@ class Sharing(sharing.BaseSharing):
         for row in self._map_cache:
             if ShareType and row['ShareType'] != ShareType:
                 continue
-            if Owner and row['Owner'] != Owner:
+            elif Owner and row['Owner'] != Owner:
                 continue
-            if User and row['User'] != User:
+            elif User and row['User'] != User:
                 continue
-            if PathOrToken and row['PathOrToken'] != PathOrToken:
+            elif PathOrToken and row['PathOrToken'] != PathOrToken:
                 continue
-            if PathMapped and row['PathMapped'] != PathMapped:
+            elif PathMapped and row['PathMapped'] != PathMapped:
                 continue
             result.append(row)
         return result
@@ -215,7 +215,7 @@ class Sharing(sharing.BaseSharing):
                     break
             index += 1
 
-        if found:
+        if found == True:
             logger.debug("TRACE/sharing/*/delete: found index=%d", index)
             if row['Owner'] != Owner:
                 return {"status": "permission-denied"}
@@ -243,23 +243,36 @@ class Sharing(sharing.BaseSharing):
         if Action not in sharing.API_SHARE_TOGGLES_V1:
             return False
 
-        logger.debug("TRACE/sharing/*/" + Action + ": OwnerOrUser=%r PathOrToken=%r Action=%r", OwnerOrUser, PathOrToken, Action)
+        logger.debug("TRACE/sharing/*/" + Action + ": ShareType=%r OwnerOrUser=%r User=%r PathOrToken=%r PathMapped=%r Action=%r", ShareType, OwnerOrUser, User, PathOrToken, PathMapped, Action)
 
         # lookup entry
         found = False
         index = 0
         for row in self._map_cache:
+            logger.debug("TRACE/sharing/*/" + Action + ": check: %r", row)
             if row['ShareType'] != ShareType:
                 pass
-            if row['PathOrToken'] != PathOrToken:
+            elif row['PathOrToken'] != PathOrToken:
                 pass
+            elif PathMapped and row['PathMapped'] != PathMapped:
+                pass
+            elif row['Owner'] == OwnerOrUser:
+                # owner has requested filter-by-user
+                if User and row['User'] != User:
+                    pass
+                else:
+                    found = True
+                    break
             else:
                 found = True
                 break
             index += 1
 
-        if found:
-            if row['Owner'] == OwnerOrUser:
+        if found == True:
+            # logger.debug("TRACE/sharing/*/" + Action + ": found: %r", row)
+            if User and row['User'] != User:
+                return {"status": "permission-denied"}
+            elif row['Owner'] == OwnerOrUser:
                 pass
             elif row['User'] == OwnerOrUser:
                 pass
@@ -268,7 +281,7 @@ class Sharing(sharing.BaseSharing):
 
             # TODO: locking
             if row['Owner'] == OwnerOrUser:
-                logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": Owner=%r PathOrToken=%r index=%d", OwnerOrUser, PathOrToken, index)
+                logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": Owner=%r User=%r PathOrToken=%r index=%d", OwnerOrUser, User, PathOrToken, index)
                 if Action == "disable":
                     row['EnabledByOwner'] = str(False)
                 elif Action == "enable":
