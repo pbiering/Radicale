@@ -16,6 +16,7 @@
 
 import csv
 import os
+from typing import Sequence
 
 from radicale import sharing
 from radicale.log import logger
@@ -110,7 +111,7 @@ class Sharing(sharing.BaseSharing):
     def list_sharing(self,
                      ShareType: [str | None] = None,
                      PathOrToken: [str | None] = None, PathMapped: [str | None] = None,
-                     Owner: [str | None] = None, User: [str | None] = None) -> bool:
+                     Owner: [str | None] = None, User: [str | None] = None) -> [Sequence(str) | None]:
         """ retrieve sharing """
         result = []
         for row in self._map_cache:
