@@ -20,7 +20,7 @@ import logging
 import posixpath
 import sys
 import xml.etree.ElementTree as ET
-from typing import Optional
+from typing import Optional, Union
 
 from radicale import (auth, config, hook, httputils, pathutils, rights,
                       sharing, storage, types, utils, web, xmlutils)
@@ -110,7 +110,7 @@ class Access:
     _rights: rights.BaseRights
     _parent_permissions: Optional[str]
 
-    def __init__(self, rights: rights.BaseRights, user: str, path: str, permissions_filter: str = None
+    def __init__(self, rights: rights.BaseRights, user: str, path: str, permissions_filter: Union[str | None] = None
                  ) -> None:
         self._rights = rights
         self.user = user
