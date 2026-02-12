@@ -23,8 +23,7 @@ import json
 import logging
 import os
 import re
-
-from typing import (Sequence)
+from typing import Sequence
 
 from radicale import sharing
 from radicale.tests import BaseTest

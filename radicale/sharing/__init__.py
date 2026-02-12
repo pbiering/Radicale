@@ -20,14 +20,13 @@ import json
 import re
 import socket
 import uuid
-
 from csv import DictWriter
 from datetime import datetime
 from http import client
+from typing import Sequence
 from urllib.parse import parse_qs
-from typing import (Sequence)
 
-from radicale import config, httputils, rights, utils, types
+from radicale import config, httputils, rights, types, utils
 from radicale.app.base import Access
 from radicale.log import logger
 
@@ -90,6 +89,7 @@ class BaseSharing:
         self.sharing_db_type = configuration.get("sharing", "type")
         logger.info("sharing.db_type: %s", self.sharing_db_type)
         # database tasks
+
         try:
             if self.init_database() is False:
                 exit(1)
@@ -105,7 +105,7 @@ class BaseSharing:
     # overloadable functions
     def init_database(self) -> bool:
         """ initialize database """
-        return None
+        return False
 
     def get_database_info(self) -> [dict | None]:
         """ retrieve database information """
@@ -114,7 +114,7 @@ class BaseSharing:
     def list_sharing(self,
                      ShareType: [str | None] = None,
                      PathOrToken: [str | None] = None, PathMapped: [str | None] = None,
-                     Owner: [str | None] = None, User: [str | None] = None) -> bool:
+                     Owner: [str | None] = None, User: [str | None] = None) -> [Sequence(str) | None]:
         """ retrieve sharing """
         return None
 
@@ -166,6 +166,7 @@ class BaseSharing:
                 return result
         else:
             logger.debug("TRACE/sharing_by_token: not active")
+            return None
 
         if self.sharing_collection_by_map:
             result = self.sharing_collection_by_map_resolver(path, user)
@@ -175,6 +176,7 @@ class BaseSharing:
                 return result
         else:
             logger.debug("TRACE/sharing_by_map: not active")
+            return None
 
         # final
         return {"mapped": False}
@@ -462,7 +464,7 @@ class BaseSharing:
             if ShareType == "token":
                 # check access Permissions
                 access = Access(self._rights, user, PathMapped)
-                if not access.check("r") and "i" not in access.Permissions:
+                if not access.check("r") and "i" not in access.permissions:
                     logger.info("Add sharing-by-token: access to %r not allowed for user %r", PathMapped, user)
                     return httputils.NOT_ALLOWED
 
@@ -489,7 +491,7 @@ class BaseSharing:
             elif ShareType == "map":
                 # check access Permissions
                 access = Access(self._rights, user, PathMapped)
-                if not access.check("r") and "i" not in access.Permissions:
+                if not access.check("r") and "i" not in access.permissions:
                     logger.info("Add sharing-by-map: access to %r not allowed for user %r", PathMapped, user)
                     return httputils.NOT_ALLOWED
 
@@ -535,7 +537,7 @@ class BaseSharing:
                 pass
             else:
                 if ShareType == "token":
-                    logger.info("Delete sharing-by-token: %r of user %r not successful", token, user)
+                    logger.info("Delete sharing-by-token: %r of user %r not successful", request_data['PathOrToken'], request_data['User'])
                 elif ShareType == "map":
                     logger.info("Delete sharing-by-map: %r of user %r not successful", request_data['PathOrToken'], request_data['User'])
                 return httputils.BAD_REQUEST
