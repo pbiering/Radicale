@@ -24,6 +24,8 @@ import logging
 import os
 import re
 
+from typing import (Sequence)
+
 from radicale import sharing
 from radicale.tests import BaseTest
 from radicale.tests.helpers import get_file_content
@@ -438,7 +440,6 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        form_array: Sequence[str]
         form_dict = dict
 
         logging.debug("*** create map without PathMapped (json) -> should fail")
@@ -468,7 +469,6 @@ class TestSharingApiSanity(BaseTest):
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
-        form_array: Sequence[str]
         form_dict = dict
 
         path_share = "/user/calendar-shared-by-owner.ics"
@@ -593,8 +593,6 @@ class TestSharingApiSanity(BaseTest):
         form_dict['User'] = "user"
         form_dict['PathMapped'] = "/owner/calendar.ics"
         form_dict['PathOrToken'] = "/user/calendar-shared-by-owner.ics"
-        data = json.dumps(form_dict)
-        content_type = "application/json"
         _, headers, answer = self._sharing_api_json("map", "delete", 200, "owner:ownerpw", form_dict)
         assert "success" in answer['Status']
 
