@@ -32,17 +32,17 @@ from radicale.log import logger
 
 INTERNAL_TYPES: Sequence[str] = ("csv", "sqlite", "none")
 
-DB_FIELDS_V1: Sequence[str] = ('Type', 'PathOrToken', 'PathMapped', 'Owner', 'User', 'Permissions', 'EnabledByOwner', 'EnabledByUser', 'HiddenByOwner', 'HiddenByUser', 'TimestampCreated', 'TimestampUpdated')
-# Type:             <token|map>
+DB_FIELDS_V1: Sequence[str] = ('ShareType', 'PathOrToken', 'PathMapped', 'Owner', 'User', 'Permissions', 'EnabledByOwner', 'EnabledByUser', 'HiddenByOwner', 'HiddenByUser', 'TimestampCreated', 'TimestampUpdated')
+# ShareType:        <token|map>
 # PathOrToken:      <path|token>
 # PathMapped:       <path>
 # Owner:            <owner> (creator of database entry)
 # User:             <user> (user of database entry)
 # Permissions:      <radicale permission string>
 # EnabledByOwner:   True|False (share status "invite/grant")
-# EnabledByUser:    True|False (share status "accept")
+# EnabledByUser:    True|False (share status "accept") - check skipped of Owner==User
 # HiddenByOwner:    True|False (share exposure controlled by owner)
-# HiddenByUser:     True|False (share exposure controlled by user)
+# HiddenByUser:     True|False (share exposure controlled by user) - check skipped if Owner==User
 # TimestampCreated: <unixtime> (when created)
 # TimestampUpdated: <unixtime> (last update)
 
@@ -101,7 +101,7 @@ class BaseSharing:
         else:
             logger.info("sharing database info: (not provided)")
 
-    ## overloadable functions
+    # overloadable functions
     def init_database(self) -> bool:
         """ initialize database """
         return None
@@ -110,44 +110,52 @@ class BaseSharing:
         """ retrieve database information """
         return None
 
-    def get_sharing_collection_by_token(self, token: str) -> [dict | None]:
-        """ retrieve target and attributes by token """
+    def list_sharing(self,
+                     ShareType: [str | None] = None,
+                     PathOrToken: [str | None ] = None, PathMapped: [str | None ] = None,
+                     Owner: [str | None ] = None, User: [str | None ] = None) -> bool:
+        """ retrieve sharing """
         return None
 
-    def get_sharing_collection_by_map(self, path: str, user: str) -> [dict | None]:
-        """ retrieve target and attributes by map """
+    def get_sharing(self,
+                    ShareType: str,
+                    PathOrToken: str,
+                    User: [str | None ] = None) -> [dict | None]:
+        """ retrieve sharing target and attributes by map """
         return None
 
-    def get_sharing_list_by_type_user(self, share_type, user, path_token = None) -> [dict | None]:
-        """ retrieve sharing list by type and user (path_token optional)"""
+    def create_sharing(self,
+                       ShareType: str,
+                       PathOrToken: str, PathMapped: str,
+                       Owner: str, User: str,
+                       Permissions: str = "r",
+                       EnabledByOwner: bool = False, EnabledByUser: bool = False,
+                       HiddenByOwner:  bool = True , HiddenByUser:  bool = True,
+                       Timestamp: int = 0) -> bool:
+        """ create sharing """
         return None
 
-    def create_sharing_by_token(self, user: str, token: str, PathMapped: str, timestamp: int, permissions: str = "r", enabled: bool = True) -> bool:
-        """ create sharing by token """
+    def delete_sharing(self,
+                       ShareType: str,
+                       PathOrToken: str,
+                       Owner: str,
+                       PathMapped: [str | None] = None, 
+                       User: [str | None] = None) -> [dict | None]:
+        """ delete sharing """
         return None
 
-    def create_sharing_by_map(self, user: str, path_share: str, PathMapped: str, user_share: str, timestamp: int, permissions: str = "r", enabled: bool = True) -> bool:
-        """ create sharing by token """
+    def toggle_sharing(self,
+                       ShareType: str,
+                       PathOrToken: str,
+                       OwnerOrUser: str,
+                       Action: str,
+                       PathMapped: [str | None] = None,
+                       User: [str | None] = None,
+                       Timestamp: int = 0) -> [dict | None]:
+        """ toggle sharing """
         return None
 
-    def delete_sharing_by_token(self, user: str, token: str) -> [dict | None]:
-        """ delete sharing by token """
-        return None
-
-    def delete_sharing_by_map(self, user: str, path_share: str, PathMapped: str, user_share: str) -> [dict | None]:
-        """ delete sharing by token """
-        return None
-
-    def toggle_sharing_by_token(self, user: str, token: str, toggle: str, timestamp: int) -> [dict | None]:
-        """ toggle sharing by token """
-        return None
-
-    def toggle_sharing_by_map(self, user: str, path_share: str, PathMapped: str, user_share: str, toggle: str, timestamp: int) -> [dict | None]:
-        """ toggle sharing by map """
-        return None
-
-
-    ## static sharing functions
+    # static sharing functions
     def sharing_collection_resolver(self, path:str, user: str) -> [dict | None]:
         if self.sharing_collection_by_token:
             result = self.sharing_collection_by_token_resolver(path)
@@ -183,7 +191,9 @@ class BaseSharing:
                 else:
                     # TODO add token validity checks
                     logger.debug("TRACE/sharing_by_token: supported token found in path: %r (token=%r)", path, match[1])
-                    return self.get_sharing_collection_by_token(match[1])
+                    return self.get_sharing(
+                            ShareType="token",
+                            PathOrToken=match[1])
             else:
                 logger.debug("TRACE/sharing_by_token: no supported prefix found in path: %r", path)
                 return {"mapped": False}
@@ -194,8 +204,11 @@ class BaseSharing:
     def sharing_collection_by_map_resolver(self, path: str, user: str) -> [dict | None]:
         """ returning dict with mapped-flag, path, user, rights or None if invalid"""
         if self.sharing_collection_by_map:
-            logger.debug("TRACE/sharing_by_map: check path: %r", path)
-            return self.get_sharing_collection_by_map(path, user)
+            logger.debug("TRACE/sharing/resolver/map: check path: %r", path)
+            return self.get_sharing(
+                    ShareType="map",
+                    PathOrToken=path,
+                    User=user)
         else:
             logger.debug("TRACE/sharing_by_map: not active")
             return {"mapped": False}
@@ -216,7 +229,7 @@ class BaseSharing:
 
             action: (token|map)/create
                 PathMapped: <path> (mandatory)
-                Permissions: <permissions> (default: r)
+                Permissions: <Permissions> (default: r)
 
                 token -> returns <token>
 
@@ -235,10 +248,10 @@ class BaseSharing:
 
         Response: output format depending on ACCEPT header
             action: list
-                by user-owned filtered sharing list in CSV/JSON
+                by user-owned filtered sharing list in CSV/JSON/TEXT
 
             actions: (other)
-                Status
+                Status in JSON/TEXT (TEXT can be parsed by shell)
 
         """
         if not self.sharing_collection_by_map and not self.sharing_collection_by_token:
@@ -253,29 +266,29 @@ class BaseSharing:
         if not path.startswith("/.sharing/v1/"):
             return httputils.NOT_FOUND
 
-        # split into share_type and action
-        share_type_action = path.removeprefix("/.sharing/v1/")
-        match = re.search('([a-z]+)/([a-z]+)$', share_type_action)
+        # split into ShareType and action
+        ShareType_action = path.removeprefix("/.sharing/v1/")
+        match = re.search('([a-z]+)/([a-z]+)$', ShareType_action)
         if not match:
-            logger.debug("TRACE/sharing/API: share_type/action not extractable: %r", share_type_action)
+            logger.debug("TRACE/sharing/API: ShareType/action not extractable: %r", ShareType_action)
             return httputils.NOT_FOUND
 
-        share_type = match.group(1)
+        ShareType = match.group(1)
         action = match.group(2)
 
-        # check for valid share_types
-        if share_type:
-            if not share_type in SHARE_TYPES:
-                logger.debug("TRACE/sharing/API: share_type not whitelisted: %r", share_type)
+        # check for valid ShareTypes
+        if ShareType:
+            if not ShareType in SHARE_TYPES:
+                logger.debug("TRACE/sharing/API: ShareType not whitelisted: %r", ShareType)
                 return httputils.NOT_FOUND
 
-        # check for enabled share_types
-        if not self.sharing_collection_by_map and share_type == "map":
-            # API is not enabled
+        # check for enabled ShareTypes
+        if not self.sharing_collection_by_map and ShareType == "map":
+            # API "map" is not enabled
             return httputils.NOT_FOUND
 
-        if not self.sharing_collection_by_token and share_type == "token":
-            # API is not enabled
+        if not self.sharing_collection_by_token and ShareType == "token":
+            # API "token" is not enabled
             return httputils.NOT_FOUND
 
         # check for valid API hooks
@@ -294,7 +307,7 @@ class BaseSharing:
             logger.debug("Client timed out", exc_info=True)
             return httputils.REQUEST_TIMEOUT
 
-        api_info = "sharing/API/POST/" + share_type + "/" + action
+        api_info = "sharing/API/POST/" + ShareType + "/" + action
 
         # parse body according to content-type
         content_type = environ.get("CONTENT_TYPE", "")
@@ -337,10 +350,13 @@ class BaseSharing:
         # parameters default
         PathOrToken: [str | None] = None
         PathMapped: [str | None] = None
-        permissions: [str | None] = None
-        user_share: [str | None] = None
-        EnabledByOwner: False  # security by default
-        HiddenByOwner: True    # security by default
+        Owner: [str | None] = user
+        User: [str | None] = None
+        Permissions: [str | None] = None
+        EnabledByOwner: bool = False   # security by default
+        HiddenByOwner:  bool = True    # security by default
+        EnabledByUser:  bool = False   # security by default
+        HiddenByUser:   bool = True    # security by default
 
         # parameters sanity check
         for key in request_data:
@@ -348,11 +364,11 @@ class BaseSharing:
                 if not re.search('^[a-zA-Z]+$', request_data[key]):
                     return httputils.BAD_REQUEST
             elif key == "PathOrToken":
-                if share_type == "token":
+                if ShareType == "token":
                     if not re.search('^' + TOKEN_PATTERN_V1 + '$', request_data[key]):
                         logger.error(api_info + ": unsupported " + key)
                         return httputils.BAD_REQUEST
-                elif share_type == "map":
+                elif ShareType == "map":
                     if not re.search('^' + PATH_PATTERN + '$', request_data[key]):
                         logger.error(api_info + ": unsupported " + key)
                         return httputils.BAD_REQUEST
@@ -372,7 +388,7 @@ class BaseSharing:
         # check for mandatory parameters
         if 'PathMapped' not in request_data:
             if action != 'list':
-                if share_type == "token" and action != 'create':
+                if ShareType == "token" and action != 'create':
                     # optinoal
                     pass
                 else:
@@ -392,13 +408,13 @@ class BaseSharing:
                 # optional
                 pass
         else:
-            if action == "create" and share_type == "token":
+            if action == "create" and ShareType == "token":
                 # not supported
                 logger.error(api_info + ": PathOrToken found but not supported")
                 return httputils.BAD_REQUEST
             PathOrToken = request_data['PathOrToken']
 
-        if share_type == "map":
+        if ShareType == "map":
             if 'User' not in request_data:
                 if action != "list":
                     logger.warning(api_info + ": missing User")
@@ -407,20 +423,22 @@ class BaseSharing:
                     # optional
                     pass
             else:
-                user_share = request_data['User']
+                User = request_data['User']
 
         answer: dict = {}
         answer['ApiVersion'] = "1"
-        timestamp = int((datetime.now() - datetime(1970, 1, 1)).total_seconds())
+        Timestamp = int((datetime.now() - datetime(1970, 1, 1)).total_seconds())
 
         ## action: list
         if action == "list":
             logger.debug("TRACE/" + api_info + ": start")
-            path_token_filter = None
             if 'PathOrToken' in request_data:
-                path_token_filter = request_data['PathOrToken']
-                logger.debug("TRACE/" + api_info + ": filter: %r", path_token_filter)
-            result = self.get_sharing_list_by_type_user(share_type, user, PathOrToken)
+                PathOrToken = request_data['PathOrToken']
+                logger.debug("TRACE/" + api_info + ": filter: %r", PathOrToken)
+            result = self.list_sharing(
+                    ShareType=ShareType,
+                    Owner=Owner,
+                    PathOrToken=PathOrToken)
             if not result:
                 answer['Lines'] = 0
                 answer['Status'] = "not-found"
@@ -433,46 +451,56 @@ class BaseSharing:
         elif action == "create":
             logger.debug("TRACE/" + api_info + ": start")
             if not 'Permissions' in request_data:
-                permissions = "r"
+                Permissions = "r"
             else:
-                permissions = request_data['Permissions']
+                Permissions = request_data['Permissions']
 
-            if not 'EnabledByOwner' in request_data:
-                enabled = True
-            else:
-                enabled = config._convert_to_bool(request_data['EnabledByOwner'])
+            if 'Enabled' in request_data:
+                EnabledByOwner = config._convert_to_bool(request_data['EnabledByOwner'])
 
-            if share_type == "token":
-                # check access permissions
+            if ShareType == "token":
+                # check access Permissions
                 access = Access(self._rights, user, PathMapped)
-                if not access.check("r") and "i" not in access.permissions:
+                if not access.check("r") and "i" not in access.Permissions:
                     logger.info("Add sharing-by-token: access to %r not allowed for user %r", PathMapped, user)
                     return httputils.NOT_ALLOWED
 
                 ## v1: create uuid token with 2x 32 bytes = 256 bit
                 token = "v1/" + str(base64.urlsafe_b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes), 'utf-8')
 
-                logger.debug("TRACE/" + api_info + ": %r (permissions=%r token=%r)", PathMapped, permissions, token)
+                logger.debug("TRACE/" + api_info + ": %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
 
-                if not self.create_sharing_by_token(user, token, PathMapped, timestamp, permissions, enabled):
+                if not self.create_sharing(
+                        ShareType=ShareType,
+                        PathOrToken=token, PathMapped=PathMapped,
+                        Owner=Owner, User=Owner,
+                        Permissions=Permissions,
+                        EnabledByOwner=EnabledByOwner, HiddenByOwner=HiddenByOwner,
+                        Timestamp=Timestamp):
                     logger.info("Add sharing-by-token: %r by user %s not successful", PathMapped, user)
                     return httputils.BAD_REQUEST
 
-                logger.info(api_info + "(success): %r (permissions=%r token=%r)", PathMapped, permissions, token)
+                logger.info(api_info + "(success): %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
 
                 answer['Status'] = "success"
                 answer['PathOrToken'] = token
 
-            elif share_type == "map":
-                # check access permissions
+            elif ShareType == "map":
+                # check access Permissions
                 access = Access(self._rights, user, PathMapped)
-                if not access.check("r") and "i" not in access.permissions:
+                if not access.check("r") and "i" not in access.Permissions:
                     logger.info("Add sharing-by-map: access to %r not allowed for user %r", PathMapped, user)
                     return httputils.NOT_ALLOWED
 
-                logger.debug("TRACE/" + api_info + ": %r (permissions=%r PathOrToken=%r user=%r)", PathMapped, permissions, PathOrToken, user_share)
-                if not self.create_sharing_by_map(user, PathOrToken, PathMapped, user_share, timestamp, permissions, enabled):
-                    logger.info("Add sharing-by-token: %r by user %s not successful", PathMapped, user)
+                logger.debug("TRACE/" + api_info + ": %r (Permissions=%r PathOrToken=%r user=%r)", PathMapped, Permissions, PathOrToken, User)
+                if not self.create_sharing(
+                        ShareType=ShareType,
+                        PathOrToken=PathOrToken, PathMapped=PathMapped,
+                        Owner=Owner, User=User,
+                        Permissions=Permissions,
+                        EnabledByOwner=EnabledByOwner, HiddenByOwner=HiddenByOwner,
+                        Timestamp=Timestamp):
+                    logger.error(api_info + ": %r (%r) -> %r (%r)", PathMapped, User, PathOrToken, Owner)
                     return httputils.BAD_REQUEST
 
                 answer['Status'] = "success"
@@ -481,11 +509,19 @@ class BaseSharing:
         elif action == "delete":
             logger.debug("TRACE/" + api_info + ": start")
 
-            if share_type == "token":
-                result = self.delete_sharing_by_token(user, request_data['PathOrToken'])
+            if ShareType == "token":
+                result = self.delete_sharing(
+                       ShareType=ShareType,
+                       PathOrToken=PathOrToken,
+                       Owner=Owner)
 
-            elif share_type == "map":
-                result = self.delete_sharing_by_map(user, request_data['PathOrToken'], request_data['PathMapped'], request_data['User'])
+            elif ShareType == "map":
+                result = self.delete_sharing(
+                       ShareType=ShareType,
+                       PathOrToken=PathOrToken,
+                       PathMapped=PathMapped,
+                       Owner=Owner,
+                       User=User)
 
             ## result handling
             if result['status'] == "not-found":
@@ -496,9 +532,9 @@ class BaseSharing:
                 answer['Status'] = "success"
                 pass
             else:
-                if share_type == "token":
+                if ShareType == "token":
                     logger.info("Delete sharing-by-token: %r of user %r not successful", token, user)
-                elif share_type == "map":
+                elif ShareType == "map":
                     logger.info("Delete sharing-by-map: %r of user %r not successful", request_data['PathOrToken'], request_data['User'])
                 return httputils.BAD_REQUEST
 
@@ -506,11 +542,12 @@ class BaseSharing:
         elif action in API_SHARE_TOGGLES_V1:
             logger.debug("TRACE/sharing/API/POST/" + action)
 
-            if share_type == "token":
-                result = self.toggle_sharing_by_token(user, request_data['PathOrToken'], action, timestamp)
-
-            elif share_type == "map":
-                result = self.toggle_sharing_by_map(user, request_data['PathOrToken'], request_data['PathMapped'], request_data['User'], action, timestamp)
+            result = self.toggle_sharing(
+                   ShareType=ShareType,
+                   PathOrToken=PathOrToken,
+                   OwnerOrUser=user,  # authenticated user
+                   Action=action,
+                   Timestamp=Timestamp)
 
             if result:
                 if result['status'] == "not-found":
@@ -521,10 +558,7 @@ class BaseSharing:
                     answer['Status'] = "success"
                     pass
             else:
-                if share_type == "token":
-                    logger.info("Delete sharing-by-token: %r of user %s not successful", request_data['PathOrToken'], user)
-                elif share_type == "map":
-                    logger.info("Delete sharing-by-map: %r of user %s not successful", request_data['PathOrToken'], user)
+                logger.error("Toggle sharing: %r of user %s not successful", request_data['PathOrToken'], user)
                 return httputils.BAD_REQUEST
 
         else:
@@ -535,9 +569,10 @@ class BaseSharing:
         logger.debug("TRACE/sharing/API/POST output format: %r", output_format)
         if output_format == "csv" or output_format == "txt":
             answer_array = []
-            for key in answer:
-                if key != 'Content':
-                    answer_array.append('# ' + key + '=' + str(answer[key]))
+            if output_format == "txt":
+                for key in answer:
+                    if key != 'Content':
+                        answer_array.append(key + '=' + str(answer[key]))
             if 'Content' in answer and answer['Content'] is not None:
                 csv = io.StringIO()
                 writer = DictWriter(csv, fieldnames=DB_FIELDS_V1)
@@ -545,7 +580,14 @@ class BaseSharing:
                     writer.writeheader()
                 for entry in answer['Content']:
                     writer.writerow(entry)
-                answer_array.append(csv.getvalue())
+                if output_format == "csv":
+                    answer_array.append(csv.getvalue())
+                else:
+                    index = 0
+                    for line in csv.getvalue().splitlines():
+                        # create a shell array with content lines
+                        answer_array.append('Content[' + str(index) + ']="' + line + '"')
+                        index += 1
             headers = {
                 "Content-Type": "text/csv"
             }
