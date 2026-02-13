@@ -132,9 +132,9 @@ class BaseSharing:
                        Permissions: str = "r",
                        EnabledByOwner: bool = False, EnabledByUser: bool = False,
                        HiddenByOwner:  bool = True, HiddenByUser:  bool = True,
-                       Timestamp: int = 0) -> bool:
+                       Timestamp: int = 0) -> dict:
         """ create sharing """
-        return False
+        return {}
 
     def delete_sharing(self,
                        ShareType: str,
@@ -474,48 +474,62 @@ class BaseSharing:
 
                 logger.debug("TRACE/" + api_info + ": %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
 
-                if not self.create_sharing(
+                result = self.create_sharing(
                         ShareType=ShareType,
                         PathOrToken=token, PathMapped=PathMapped,
                         Owner=Owner, User=Owner,
                         Permissions=Permissions,
                         EnabledByOwner=EnabledByOwner, HiddenByOwner=HiddenByOwner,
-                        Timestamp=Timestamp):
-                    logger.info("Add sharing-by-token: %r by user %s not successful", PathMapped, user)
-                    return httputils.BAD_REQUEST
-
-                logger.info(api_info + "(success): %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
-
-                answer['Status'] = "success"
-                answer['PathOrToken'] = token
+                        Timestamp=Timestamp)
 
             elif ShareType == "map":
-                # check access Permissions
-                access = Access(self._rights, user, PathMapped)
-                if not access.check("r") and "i" not in access.permissions:
-                    logger.info("Add sharing-by-map: access to %r not allowed for user %r", PathMapped, user)
-                    return httputils.NOT_ALLOWED
-
+                # check preconditions
                 if PathOrToken is None:
                     return httputils.BAD_REQUEST
+                else:
+                    PathOrToken = str(PathOrToken)
+
                 if User is None:
                     return httputils.BAD_REQUEST
+                else:
+                    User = str(User)
+
+                # check access Permissions
+                access = Access(self._rights, Owner, PathMapped)
+                if not access.check("r") and "i" not in access.permissions:
+                    logger.info("Add sharing-by-map: access to path(mapped) %r not allowed for owner %r", PathMapped, Owner)
+                    return httputils.NOT_ALLOWED
+
+                access = Access(self._rights, str(User), str(PathOrToken))
+                if not access.check("r") and "i" not in access.permissions:
+                    logger.info("Add sharing-by-map: access to path %r not allowed for user %r", PathOrToken, user)
+                    return httputils.NOT_ALLOWED
 
                 logger.debug("TRACE/" + api_info + ": %r (Permissions=%r PathOrToken=%r user=%r)", PathMapped, Permissions, PathOrToken, User)
-                if not self.create_sharing(
+                result = self.create_sharing(
                         ShareType=ShareType,
-                        PathOrToken=str(PathOrToken),  # verification above that it is not None
+                        PathOrToken=PathOrToken,  # verification above that it is not None
                         PathMapped=PathMapped,
                         Owner=Owner,
-                        User=str(User),  # verification above that it is not None
+                        User=User,  # verification above that it is not None
                         Permissions=Permissions,
                         EnabledByOwner=EnabledByOwner, HiddenByOwner=HiddenByOwner,
                         EnabledByUser=EnabledByUser, HiddenByUser=HiddenByUser,
-                        Timestamp=Timestamp):
-                    logger.error(api_info + ": %r (%r) -> %r (%r)", PathMapped, User, PathOrToken, Owner)
-                    return httputils.BAD_REQUEST
+                        Timestamp=Timestamp)
 
+            # result handling
+            if result['status'] == "conflict":
+                return httputils.CONFLICT
+            elif result['status'] == "error":
+                return httputils.INTERNAL_SERVER_ERROR
+            elif result['status'] == "success":
                 answer['Status'] = "success"
+            else:
+                return httputils.BAD_REQUEST
+
+            if ShareType == "token":
+                logger.info(api_info + "(success): %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
+                answer['PathOrToken'] = token
 
         # action: delete
         elif action == "delete":
