@@ -4,7 +4,7 @@
 # Copyright © 2008-2017 Guillaume Ayoub
 # Copyright © 2017-2020 Unrud <unrud@outlook.com>
 # Copyright © 2020-2023 Tuna Celik <tuna@jakpark.com>
-# Copyright © 2024-2025 Peter Bieringer <pb@bieringer.de>
+# Copyright © 2024-2026 Peter Bieringer <pb@bieringer.de>
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ from typing import Iterator, List, Mapping, MutableMapping, Optional, Tuple
 import vobject
 
 import radicale.item as radicale_item
-from radicale import (httputils, pathutils, rights, storage, types, utils,
+from radicale import (httputils, pathutils, rights, sharing, storage, types, utils,
                       xmlutils)
 from radicale.app.base import Access, ApplicationBase
 from radicale.hook import HookNotificationItem, HookNotificationItemTypes
@@ -181,7 +181,17 @@ class ApplicationPartPut(ApplicationBase):
     def do_PUT(self, environ: types.WSGIEnviron, base_prefix: str,
                path: str, user: str, remote_host: str, remote_useragent: str) -> types.WSGIResponse:
         """Manage PUT request."""
-        access = Access(self._rights, user, path)
+        # Sharing by token or map
+        result = self._sharing.sharing_collection_resolver(path, user)
+        if result:
+            # overwrite and run through extended permission check
+            path = result['PathMapped']
+            user = result['Owner']
+            permissions_filter = result['Permissions']
+            access = Access(self._rights, user, path, permissions_filter)
+        else:
+            # default permission check
+            access = Access(self._rights, user, path)
         if not access.check("w"):
             return httputils.NOT_ALLOWED
         try:
