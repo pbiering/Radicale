@@ -83,6 +83,7 @@ class Sharing(sharing.BaseSharing):
                     User: Union[str | None] = None) -> Union[dict | None]:
         """ retrieve sharing target and attributes by map """
         # Lookup
+        logger.debug("TRACE/sharing: lookup ShareType=%r PathOrToken=%r User=%r)", ShareType, PathOrToken, User)
         for row in self._sharing_cache:
             if row['ShareType'] != ShareType:
                 continue
