@@ -460,7 +460,7 @@ class BaseSharing:
                 Permissions = request_data['Permissions']
 
             if 'Enabled' in request_data:
-                EnabledByOwner = config._convert_to_bool(request_data['EnabledByOwner'])
+                EnabledByOwner = config._convert_to_bool(request_data['Enabled'])
 
             if ShareType == "token":
                 # check access Permissions
