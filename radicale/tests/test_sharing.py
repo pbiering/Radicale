@@ -40,7 +40,10 @@ class TestSharingApiSanity(BaseTest):
         BaseTest.setup_method(self)
         self.htpasswd_file_path = os.path.join(self.colpath, ".htpasswd")
         encoding: str = self.configuration.get("encoding", "stock")
-        htpasswd_content = "owner:ownerpw\nuser:userpw"
+        htpasswd = ["owner:ownerpw", "user:userpw",
+                    "owner1:owner1pw", "user1:user1pw",
+                    "owner2:owner2pw", "user2:user2pw"]
+        htpasswd_content = "\n".join(htpasswd)
         with open(self.htpasswd_file_path, "w", encoding=encoding) as f:
             f.write(htpasswd_content)
 
@@ -637,4 +640,74 @@ class TestSharingApiSanity(BaseTest):
         answer_dict = json.loads(answer)
         assert answer_dict['Status'] == "success"
 
-        # TODO hide+unhide for REPORT
+    def test_sharing_api_map_usercheck(self) -> None:
+        """share-by-map API usage tests."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+
+        json_dict: dict
+
+        path_share1 = "/user1/calendar-shared-by-owner1.ics"
+        path_mapped1 = "/owner1/calendar1.ics"
+        path_share2 = "/user2/calendar-shared-by-owner2.ics"
+        path_mapped2 = "/owner2/calendar2.ics"
+
+        logging.debug("*** prepare and test access")
+        self.mkcalendar(path_mapped1, login="%s:%s" % ("owner1", "owner1pw"))
+        event = get_file_content("event1.ics")
+        path = path_mapped1 + "/event1.ics"
+        self.put(path, event, login="%s:%s" % ("owner1", "owner1pw"))
+
+        self.mkcalendar(path_mapped2, login="%s:%s" % ("owner2", "owner2pw"))
+        event = get_file_content("event1.ics")
+        path = path_mapped2 + "/event1.ics"
+        self.put(path, event, login="%s:%s" % ("owner2", "owner2pw"))
+
+        logging.debug("*** create map user1/owner1 as owner -> fail")
+        json_dict = {}
+        json_dict['User'] = "user1"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_share1
+        _, headers, answer = self._sharing_api_json("map", "create", 403, "owner:ownerpw", json_dict)
+
+        logging.debug("*** create map user1/owner1 -> ok")
+        json_dict = {}
+        json_dict['User'] = "user1"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_share1
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner1:owner1pw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.debug("*** create map user1/owner1 (repeat) -> fail")
+        json_dict = {}
+        json_dict['User'] = "user1"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_share1
+        _, headers, answer = self._sharing_api_json("map", "create", 409, "owner1:owner1pw", json_dict)
+
+        logging.debug("*** create map user2/owner2 -> ok")
+        json_dict = {}
+        json_dict['User'] = "user2"
+        json_dict['PathMapped'] = path_mapped2
+        json_dict['PathOrToken'] = path_share2
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner2:owner2pw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.debug("*** create map user2/owner1 -> fail")
+        json_dict = {}
+        json_dict['User'] = "user2"
+        json_dict['PathMapped'] = path_mapped2
+        json_dict['PathOrToken'] = path_share1
+        _, headers, answer = self._sharing_api_json("map", "create", 403, "owner2:owner2pw", json_dict)
+
+    # TODO hide+unhide for REPORT
