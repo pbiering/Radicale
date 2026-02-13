@@ -17,6 +17,7 @@
 import base64
 import io
 import json
+import posixpath
 import re
 import socket
 import uuid
@@ -26,7 +27,7 @@ from http import client
 from typing import Sequence, Union
 from urllib.parse import parse_qs
 
-from radicale import config, httputils, rights, types, utils
+from radicale import config, httputils, pathutils, rights, types, utils
 from radicale.app.base import Access
 from radicale.log import logger
 
@@ -208,9 +209,18 @@ class BaseSharing:
         """ returning dict with mapped-flag, path, user, rights or None if invalid"""
         if self.sharing_collection_by_map:
             logger.debug("TRACE/sharing/resolver/map: check path: %r", path)
-            return self.get_sharing(
+            result = self.get_sharing(
                     ShareType="map",
                     PathOrToken=path,
+                    User=user)
+            if result:
+                return result
+            # fallback to parent path
+            parent_path = pathutils.unstrip_path(posixpath.dirname(pathutils.strip_path(path)), True)
+            logger.debug("TRACE/sharing/resolver/map: check parent path: %r", parent_path)
+            return self.get_sharing(
+                    ShareType="map",
+                    PathOrToken=parent_path,
                     User=user)
         else:
             logger.debug("TRACE/sharing_by_map: not active")
