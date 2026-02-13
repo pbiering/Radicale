@@ -137,7 +137,7 @@ class Sharing(sharing.BaseSharing):
                        Permissions: str = "r",
                        EnabledByOwner: bool = False, EnabledByUser: bool = False,
                        HiddenByOwner:  bool = True, HiddenByUser:  bool = True,
-                       Timestamp: int = 0) -> bool:
+                       Timestamp: int = 0) -> dict:
         """ create sharing """
         row: dict
 
@@ -150,7 +150,7 @@ class Sharing(sharing.BaseSharing):
                 if row['PathOrToken'] == PathOrToken:
                     # must be unique systemwide
                     logger.error("sharing/token/create: PathOrToken already exists: PathOrToken=%r", PathOrToken)
-                    return False
+                    return {"status": "conflict"}
         elif ShareType == "map":
             logger.debug("TRACE/sharing/map/create: PathOrToken=%r Owner=%r PathMapped=%r User=%r Permissions=%r", PathOrToken, Owner, PathMapped, User, Permissions)
             # check for duplicate map entry
@@ -159,8 +159,8 @@ class Sharing(sharing.BaseSharing):
                     continue
                 if row['PathMapped'] == PathMapped and row['User'] == User:
                     # must be unique systemwide
-                    logger.error("sharing/map/create: entry already exists: PathMapped=%r User=%r", PathMapped, User, Permissions)
-                    return False
+                    logger.error("sharing/map/create: entry already exists: PathMapped=%r User=%r", PathMapped, User)
+                    return {"status": "conflict"}
 
         row = {"ShareType": ShareType,
                "PathOrToken": PathOrToken,
@@ -179,9 +179,9 @@ class Sharing(sharing.BaseSharing):
         self._sharing_cache.append(row)
         if self._write_csv(self._sharing_db_file):
             logger.debug("TRACE/sharing_by_token: write CSV done")
-            return True
-        logger.warning("sharing/add_sharing_by_token: cannot update CSV database")
-        return False
+            return {"status": "success"}
+        logger.error("sharing/add_sharing_by_token: cannot update CSV database")
+        return {"status": "error"}
 
     def delete_sharing(self,
                        ShareType: str,
