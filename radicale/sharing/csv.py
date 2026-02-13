@@ -157,7 +157,7 @@ class Sharing(sharing.BaseSharing):
             for row in self._sharing_cache:
                 if row['ShareType'] != "map":
                     continue
-                if row['PathMapped'] == PathMapped and row['User'] == User:
+                if row['PathMapped'] == PathMapped and row['User'] == User and row['PathOrToken'] == PathOrToken:
                     # must be unique systemwide
                     logger.error("sharing/map/create: entry already exists: PathMapped=%r User=%r", PathMapped, User)
                     return {"status": "conflict"}
