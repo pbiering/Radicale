@@ -519,8 +519,8 @@ class TestSharingApiSanity(BaseTest):
         file_item1 = "event1.ics"
         file_item2 = "event2.ics"
         path_shared = "/user/calendar-shared-by-owner.ics/"
-        path_share_item1 = os.path.join(path_shared, file_item1)
-        path_share_item2 = os.path.join(path_shared, file_item2)
+        path_shared_item1 = os.path.join(path_shared, file_item1)
+        path_shared_item2 = os.path.join(path_shared, file_item2)
         path_mapped = "/owner/calendar.ics/"
         path_mapped_item1 = os.path.join(path_mapped, file_item1)
         path_mapped_item2 = os.path.join(path_mapped, file_item2)
@@ -619,13 +619,13 @@ class TestSharingApiSanity(BaseTest):
         assert "UID:event2" in answer
 
         logging.info("\n*** fetch item via map (with credentials) as user")
-        _, headers, answer = self.request("GET", path_share_item1, check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_item1, check=200, login="%s:%s" % ("user", "userpw"))
         # only requested event has to be in the answer
         assert "UID:event1" in answer
         assert "UID:event2" not in answer
 
         logging.info("\n*** fetch item via map (with credentials) as user")
-        _, headers, answer = self.request("GET", path_share_item2, check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_item2, check=200, login="%s:%s" % ("user", "userpw"))
         # only requested event has to be in the answer
         assert "UID:event2" in answer
         assert "UID:event1" not in answer
@@ -769,9 +769,9 @@ class TestSharingApiSanity(BaseTest):
 
         json_dict: dict
 
-        path_share_r = "/user/calendar-shared-by-owner-r.ics/"
-        path_share_w = "/user/calendar-shared-by-owner-w.ics/"
-        path_share_rw = "/user/calendar-shared-by-owner-rw.ics/"
+        path_shared_r = "/user/calendar-shared-by-owner-r.ics/"
+        path_shared_w = "/user/calendar-shared-by-owner-w.ics/"
+        path_shared_rw = "/user/calendar-shared-by-owner-rw.ics/"
         path_mapped = "/owner/calendar.ics/"
 
         logging.info("\n*** prepare and test access")
@@ -789,7 +789,7 @@ class TestSharingApiSanity(BaseTest):
         json_dict = {}
         json_dict['User'] = "user"
         json_dict['PathMapped'] = path_mapped
-        json_dict['PathOrToken'] = path_share_r
+        json_dict['PathOrToken'] = path_shared_r
         json_dict['Permissions'] = "r"
         json_dict['Enabled'] = "True"
         _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
@@ -800,7 +800,7 @@ class TestSharingApiSanity(BaseTest):
         json_dict = {}
         json_dict['User'] = "user"
         json_dict['PathMapped'] = path_mapped
-        json_dict['PathOrToken'] = path_share_w
+        json_dict['PathOrToken'] = path_shared_w
         json_dict['Permissions'] = "w"
         json_dict['Enabled'] = "True"
         _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
@@ -811,7 +811,7 @@ class TestSharingApiSanity(BaseTest):
         json_dict = {}
         json_dict['User'] = "user"
         json_dict['PathMapped'] = path_mapped
-        json_dict['PathOrToken'] = path_share_rw
+        json_dict['PathOrToken'] = path_shared_rw
         json_dict['Permissions'] = "rw"
         json_dict['Enabled'] = "True"
         _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
@@ -825,34 +825,34 @@ class TestSharingApiSanity(BaseTest):
 
         # check permissions, no map is enabled by user -> 404
         logging.info("\n*** fetch collection via map:r -> n/a")
-        _, headers, answer = self.request("GET", path_share_r, check=404, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_r, check=404, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch collection via map:w -> n/a")
-        _, headers, answer = self.request("GET", path_share_r, check=404, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_r, check=404, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch collection via map:rw -> n/a")
-        _, headers, answer = self.request("GET", path_share_r, check=404, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_r, check=404, login="%s:%s" % ("user", "userpw"))
 
         # enable maps by user
         logging.info("\n*** enable map by user:r")
         json_dict = {}
         json_dict['User'] = "user"
         json_dict['PathMapped'] = path_mapped
-        json_dict['PathOrToken'] = path_share_r
+        json_dict['PathOrToken'] = path_shared_r
         _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
 
         logging.info("\n*** enable map by user:w")
         json_dict = {}
         json_dict['User'] = "user"
         json_dict['PathMapped'] = path_mapped
-        json_dict['PathOrToken'] = path_share_w
+        json_dict['PathOrToken'] = path_shared_w
         _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
 
         logging.info("\n*** enable map by user:rw")
         json_dict = {}
         json_dict['User'] = "user"
         json_dict['PathMapped'] = path_mapped
-        json_dict['PathOrToken'] = path_share_rw
+        json_dict['PathOrToken'] = path_shared_rw
         _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
 
         # list adjusted maps
@@ -862,13 +862,13 @@ class TestSharingApiSanity(BaseTest):
 
         # check permissions, no map is enabled by user -> 404
         logging.info("\n*** fetch collection via map:r -> ok")
-        _, headers, answer = self.request("GET", path_share_r, check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_r, check=200, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch collection via map:w -> fail")
-        _, headers, answer = self.request("GET", path_share_w, check=403, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_w, check=403, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch collection via map:rw -> ok")
-        _, headers, answer = self.request("GET", path_share_rw, check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_rw, check=200, login="%s:%s" % ("user", "userpw"))
 
         # list adjusted maps
         logging.info("\n*** list (json->text)")
@@ -878,38 +878,38 @@ class TestSharingApiSanity(BaseTest):
         # PUT
         logging.info("\n*** put to collection by user via map:r -> fail")
         event = get_file_content("event2.ics")
-        path = path_share_r + "/event2.ics"
+        path = path_shared_r + "/event2.ics"
         self.put(path, event, check=403, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** put to collection by user via map:w -> ok")
         event = get_file_content("event2.ics")
-        path = path_share_w + "event2.ics"
+        path = path_shared_w + "event2.ics"
         self.put(path, event, check=201, login="%s:%s" % ("user", "userpw"))
 
         # check result
         logging.info("\n*** fetch event via map:r -> ok")
-        _, headers, answer = self.request("GET", path_share_r + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_r + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch event as owner -> ok")
         _, headers, answer = self.request("GET", path_mapped + "event2.ics", check=200, login="%s:%s" % ("owner", "ownerpw"))
 
         logging.info("\n*** put to collection by user via map:rw -> ok")
         event = get_file_content("event3.ics")
-        path = path_share_rw + "event3.ics"
+        path = path_shared_rw + "event3.ics"
         self.put(path, event, check=201, login="%s:%s" % ("user", "userpw"))
 
         # check result
         logging.info("\n*** fetch event via map:r -> ok")
-        _, headers, answer = self.request("GET", path_share_r + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_r + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch event via map:r -> ok")
-        _, headers, answer = self.request("GET", path_share_r + "event3.ics", check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_r + "event3.ics", check=200, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch event via map:rw -> ok")
-        _, headers, answer = self.request("GET", path_share_rw + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_rw + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch event via map:rw -> ok")
-        _, headers, answer = self.request("GET", path_share_rw + "event3.ics", check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("GET", path_shared_rw + "event3.ics", check=200, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** fetch event as owner -> ok")
         _, headers, answer = self.request("GET", path_mapped + "event1.ics", check=200, login="%s:%s" % ("owner", "ownerpw"))
@@ -922,13 +922,13 @@ class TestSharingApiSanity(BaseTest):
 
         # DELETE
         logging.info("\n*** DELETE from collection by user via map:r -> fail")
-        _, headers, answer = self.request("DELETE", path_share_r + "event1.ics", check=403, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("DELETE", path_shared_r + "event1.ics", check=403, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** DELETE from collection by user via map:rw -> ok")
-        _, headers, answer = self.request("DELETE", path_share_rw + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("DELETE", path_shared_rw + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
 
         logging.info("\n*** DELETE from collection by user via map:w -> ok")
-        _, headers, answer = self.request("DELETE", path_share_w + "event3.ics", check=200, login="%s:%s" % ("user", "userpw"))
+        _, headers, answer = self.request("DELETE", path_shared_w + "event3.ics", check=200, login="%s:%s" % ("user", "userpw"))
 
         # check results
         logging.info("\n*** fetch event as owner -> ok")
@@ -1035,7 +1035,7 @@ class TestSharingApiSanity(BaseTest):
         assert status == 200 and prop.text
 
     def test_sharing_api_map_propfind(self) -> None:
-        """share-by-map API usage tests related to report."""
+        """share-by-map API usage tests related to propfind."""
         self.configure({"auth": {"type": "htpasswd",
                                  "htpasswd_filename": self.htpasswd_file_path,
                                  "htpasswd_encryption": "plain"},
@@ -1127,3 +1127,165 @@ class TestSharingApiSanity(BaseTest):
         assert status == 200 and len(prop) == 1
         element = prop.find(xmlutils.make_clark("D:href"))
         assert element is not None and element.text == "/user/"
+
+    def test_sharing_api_map_proppatch(self) -> None:
+        """share-by-map API usage tests related to report."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "response_content_on_debug": "True",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+
+        json_dict: dict
+
+        path_mapped = "/owner/calendar.ics/"
+        path_shared_r = "/user/calendar-shared-by-owner-r.ics/"
+        path_shared_w = "/user/calendar-shared-by-owner-w.ics/"
+        path_shared_rw = "/user/calendar-shared-by-owner-rw.ics/"
+
+        logging.info("\n*** prepare and test access")
+        self.mkcalendar(path_mapped, login="%s:%s" % ("owner", "ownerpw"))
+        event = get_file_content("event1.ics")
+        path = os.path.join(path_mapped, "event1.ics")
+        self.put(path, event, login="%s:%s" % ("owner", "ownerpw"))
+
+        # check GET
+        logging.info("\n*** GET event as owner (init) -> ok")
+        _, headers, answer = self.request("GET", path_mapped + "event1.ics", check=200, login="%s:%s" % ("owner", "ownerpw"))
+
+        # check PROPFIND as owner
+        logging.info("\n*** PROPFIND collection owner -> ok")
+        _, responses = self.propfind(path_mapped, """\
+<?xml version="1.0" encoding="utf-8"?>
+<propfind xmlns="DAV:">
+    <prop>
+        <current-user-principal />
+    </prop>
+</propfind>""", login="%s:%s" % ("owner", "ownerpw"))
+        logging.info("response: %r", responses)
+        response = responses[path_mapped]
+        assert not isinstance(response, int) and len(response) == 1
+        status, prop = response["D:current-user-principal"]
+        assert status == 200 and len(prop) == 1
+        element = prop.find(xmlutils.make_clark("D:href"))
+        assert element is not None and element.text == "/owner/"
+
+        # check PROPPATCH as owner
+        logging.info("\n*** PROPPATCH collection owner -> ok")
+        proppatch = get_file_content("proppatch_set_calendar_color.xml")
+        _, responses = self.proppatch(path_mapped, proppatch, login="%s:%s" % ("owner", "ownerpw"))
+        logging.info("response: %r", responses)
+        response = responses[path_mapped]
+        assert not isinstance(response, int) and len(response) == 1
+        status, prop = response["ICAL:calendar-color"]
+        assert status == 200 and not prop.text
+
+        # check PROPPATCH as user
+        logging.info("\n*** PROPPATCH collection as user -> 404")
+        proppatch = get_file_content("proppatch_remove_calendar_color.xml")
+        _, responses = self.proppatch(path_shared_r, proppatch, login="%s:%s" % ("user", "userpw"), check=404)
+        _, responses = self.proppatch(path_shared_w, proppatch, login="%s:%s" % ("user", "userpw"), check=404)
+        _, responses = self.proppatch(path_shared_rw, proppatch, login="%s:%s" % ("user", "userpw"), check=404)
+
+        # create map
+        logging.info("\n*** create map user/owner:r -> ok")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared_r
+        json_dict['Permissions'] = "r"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** create map user/owner:w -> ok")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared_w
+        json_dict['Permissions'] = "w"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** create map user/owner:rw -> ok")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared_rw
+        json_dict['Permissions'] = "rw"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        # check PROPPATCH as user
+        logging.info("\n*** PROPPATCH collection as user -> 403")
+        proppatch = get_file_content("proppatch_set_calendar_color.xml")
+        _, responses = self.proppatch(path_shared_r, proppatch, login="%s:%s" % ("user", "userpw"), check=404)
+        _, responses = self.proppatch(path_shared_w, proppatch, login="%s:%s" % ("user", "userpw"), check=404)
+        _, responses = self.proppatch(path_shared_rw, proppatch, login="%s:%s" % ("user", "userpw"), check=404)
+
+        # enable map by user
+        logging.info("\n*** enable map by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared_r
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
+
+        logging.info("\n*** enable map by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared_w
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
+
+        logging.info("\n*** enable map by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared_rw
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
+
+        # check PROPPATCH as user
+        proppatch = get_file_content("proppatch_remove_calendar_color.xml")
+        logging.info("\n*** PROPPATCH collection as user:r -> 403")
+        _, responses = self.proppatch(path_shared_r, proppatch, login="%s:%s" % ("user", "userpw"), check=403)
+
+        logging.info("\n*** PROPPATCH collection as user:w -> ok")
+        _, responses = self.proppatch(path_shared_w, proppatch, login="%s:%s" % ("user", "userpw"))
+        logging.info("response: %r", responses)
+
+        logging.info("\n*** PROPPATCH collection as user:rw -> ok")
+        _, responses = self.proppatch(path_shared_rw, proppatch, login="%s:%s" % ("user", "userpw"))
+        logging.info("response: %r", responses)
+
+        # check PROPFIND as owner
+        logging.info("\n*** PROPFIND collection owner -> ok")
+        _, responses = self.propfind(path_mapped, """\
+<?xml version="1.0" encoding="utf-8"?>
+<propfind xmlns="DAV:">
+    <prop>
+        <current-user-principal />
+    </prop>
+</propfind>""", login="%s:%s" % ("owner", "ownerpw"))
+        logging.info("response: %r", responses)
+        response = responses[path_mapped]
+        assert not isinstance(response, int) and len(response) == 1
+        status, prop = response["D:current-user-principal"]
+        assert status == 200 and len(prop) == 1
+        element = prop.find(xmlutils.make_clark("D:href"))
+        assert element is not None and element.text == "/owner/"
+        assert "ICAL:calendar-color" not in response
