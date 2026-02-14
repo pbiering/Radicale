@@ -58,12 +58,12 @@ class ApplicationPartDelete(ApplicationBase):
                   path: str, user: str, remote_host: str, remote_useragent: str) -> types.WSGIResponse:
         """Manage DELETE request."""
         # Sharing by token or map
-        result = self._sharing.sharing_collection_resolver(path, user)
-        if result:
+        sharing = self._sharing.sharing_collection_resolver(path, user)
+        if sharing:
             # overwrite and run through extended permission check
-            path = result['PathMapped']
-            user = result['Owner']
-            permissions_filter = result['Permissions']
+            path = sharing['PathMapped']
+            user = sharing['Owner']
+            permissions_filter = sharing['Permissions']
             access = Access(self._rights, user, path, permissions_filter)
         else:
             # default permission check
