@@ -511,7 +511,7 @@ class TestSharingApiSanity(BaseTest):
                                     "collection_by_map": "True",
                                     "collection_by_token": "True"},
                         "logging": {"request_header_on_debug": "False",
-                                    "request_content_on_debug": "True"},
+                                    "request_content_on_debug": "False"},
                         "rights": {"type": "owner_only"}})
 
         json_dict: dict
@@ -620,9 +620,15 @@ class TestSharingApiSanity(BaseTest):
 
         logging.info("\n*** fetch item via map (with credentials) as user")
         _, headers, answer = self.request("GET", path_share_item1, check=200, login="%s:%s" % ("user", "userpw"))
+        # only requested event has to be in the answer
         assert "UID:event1" in answer
         assert "UID:event2" not in answer
-        exit(1)
+
+        logging.info("\n*** fetch item via map (with credentials) as user")
+        _, headers, answer = self.request("GET", path_share_item2, check=200, login="%s:%s" % ("user", "userpw"))
+        # only requested event has to be in the answer
+        assert "UID:event2" in answer
+        assert "UID:event1" not in answer
 
         logging.info("\n*** disable map by owner (json->json)")
         json_dict = {}
