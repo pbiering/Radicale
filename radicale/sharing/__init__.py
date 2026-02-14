@@ -159,6 +159,7 @@ class BaseSharing:
 
     # static sharing functions
     def sharing_collection_resolver(self, path: str, user: str) -> Union[dict | None]:
+        """ returning dict with mapped-flag, PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_token:
             result = self.sharing_collection_by_token_resolver(path)
             if result is None:
@@ -180,10 +181,10 @@ class BaseSharing:
             return None
 
         # final
-        return {"mapped": False}
+        return None
 
     def sharing_collection_by_token_resolver(self, path) -> Union[dict | None]:
-        """ returning dict with mapped-flag, path, user, rights or None if invalid"""
+        """ returning dict with mapped-flag, PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_token:
             logger.debug("TRACE/sharing_by_token: check path: %r", path)
             if path.startswith("/.token/"):
@@ -206,7 +207,7 @@ class BaseSharing:
             return {"mapped": False}
 
     def sharing_collection_by_map_resolver(self, path: str, user: str) -> Union[dict | None]:
-        """ returning dict with mapped-flag, path, user, rights or None if invalid"""
+        """ returning dict with mapped-flag, PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_map:
             logger.debug("TRACE/sharing/resolver/map: check path: %r", path)
             result = self.get_sharing(
@@ -215,13 +216,21 @@ class BaseSharing:
                     User=user)
             if result:
                 return result
-            # fallback to parent path
-            parent_path = pathutils.unstrip_path(posixpath.dirname(pathutils.strip_path(path)), True)
-            logger.debug("TRACE/sharing/resolver/map: check parent path: %r", parent_path)
-            return self.get_sharing(
-                    ShareType="map",
-                    PathOrToken=parent_path,
-                    User=user)
+            else:
+                # fallback to parent path
+                parent_path = pathutils.unstrip_path(posixpath.dirname(pathutils.strip_path(path)), True)
+                logger.debug("TRACE/sharing/resolver/map: check parent path: %r", parent_path)
+                result = self.get_sharing(
+                        ShareType="map",
+                        PathOrToken=parent_path,
+                        User=user)
+                if result:
+                    result['PathMapped'] = path.replace(parent_path, result['PathMapped'])
+                    logger.debug("TRACE/sharing/resolver/map: replaced parent_path: %r", result['PathMapped'])
+                    return result
+                else:
+                    logger.debug("TRACE/sharing_by_map: not found")
+                    return {"mapped": False}
         else:
             logger.debug("TRACE/sharing_by_map: not active")
             return {"mapped": False}
