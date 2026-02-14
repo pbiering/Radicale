@@ -3,7 +3,7 @@
 # Copyright © 2008 Pascal Halter
 # Copyright © 2008-2017 Guillaume Ayoub
 # Copyright © 2017-2021 Unrud <unrud@outlook.com>
-# Copyright © 2025-2025 Peter Bieringer <pb@bieringer.de>
+# Copyright © 2025-2026 Peter Bieringer <pb@bieringer.de>
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,8 @@ import posixpath
 import socket
 import xml.etree.ElementTree as ET
 from http import client
-from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
+from typing import (Dict, Iterable, Iterator, List, Optional, Sequence, Tuple,
+                    Union)
 
 from radicale import (httputils, pathutils, rights, storage, types, utils,
                       xmlutils)
@@ -35,7 +36,7 @@ from radicale.log import logger
 def xml_propfind(base_prefix: str, path: str,
                  xml_request: Optional[ET.Element],
                  allowed_items: Iterable[Tuple[types.CollectionOrItem, str]],
-                 user: str, encoding: str, max_resource_size: int) -> Optional[ET.Element]:
+                 user: str, encoding: str, max_resource_size: int, sharing: Union[dict | None] = None) -> Optional[ET.Element]:
     """Read and answer PROPFIND requests.
 
     Read rfc4918-9.1 for info.
@@ -72,7 +73,7 @@ def xml_propfind(base_prefix: str, path: str,
         write = permission == "w"
         multistatus.append(xml_propfind_response(
             base_prefix, path, item, props, user, encoding, write=write,
-            allprop=allprop, propname=propname, max_resource_size=max_resource_size))
+            allprop=allprop, propname=propname, max_resource_size=max_resource_size, sharing=sharing))
 
     return multistatus
 
@@ -80,7 +81,7 @@ def xml_propfind(base_prefix: str, path: str,
 def xml_propfind_response(
         base_prefix: str, path: str, item: types.CollectionOrItem,
         props: Sequence[str], user: str, encoding: str, max_resource_size: int, write: bool = False,
-        propname: bool = False, allprop: bool = False) -> ET.Element:
+        propname: bool = False, allprop: bool = False, sharing: Union[dict | None] = None) -> ET.Element:
     """Build and return a PROPFIND response."""
     if propname and allprop or (props and (propname or allprop)):
         raise ValueError("Only use one of props, propname and allprops")
@@ -100,6 +101,9 @@ def xml_propfind_response(
             collection.path, item.href))
     response = ET.Element(xmlutils.make_clark("D:response"))
     href = ET.Element(xmlutils.make_clark("D:href"))
+    if sharing:
+        # backmap
+        uri = uri.replace(sharing['PathMapped'], sharing['PathOrToken'])
     href.text = xmlutils.make_href(base_prefix, uri)
     response.append(href)
 
@@ -178,6 +182,9 @@ def xml_propfind_response(
               is_collection and collection.is_principal):
             child_element = ET.Element(xmlutils.make_clark("D:href"))
             child_element.text = xmlutils.make_href(base_prefix, path)
+            if sharing:
+                # backmap
+                child_element.text = child_element.text.replace(sharing['PathMapped'], sharing['PathOrToken'])
             element.append(child_element)
         elif tag == xmlutils.make_clark("C:supported-calendar-component-set"):
             human_tag = xmlutils.make_human_tag(tag)
@@ -213,6 +220,9 @@ def xml_propfind_response(
                 child_element = ET.Element(xmlutils.make_clark("D:href"))
                 child_element.text = xmlutils.make_href(
                     base_prefix, "/%s/" % user)
+                if sharing:
+                    # backmap
+                    child_element.text = child_element.text.replace(sharing['Owner'], sharing['User'])
                 element.append(child_element)
             else:
                 element.append(ET.Element(
@@ -405,7 +415,17 @@ class ApplicationPartPropfind(ApplicationBase):
     def do_PROPFIND(self, environ: types.WSGIEnviron, base_prefix: str,
                     path: str, user: str, remote_host: str, remote_useragent: str) -> types.WSGIResponse:
         """Manage PROPFIND request."""
-        access = Access(self._rights, user, path)
+        # Sharing by token or map
+        sharing = self._sharing.sharing_collection_resolver(path, user)
+        if sharing:
+            # overwrite and run through extended permission check
+            path = sharing['PathMapped']
+            user = sharing['Owner']
+            permissions_filter = sharing['Permissions']
+            access = Access(self._rights, user, path, permissions_filter)
+        else:
+            # default permission check
+            access = Access(self._rights, user, path)
         if not access.check("r"):
             return httputils.NOT_ALLOWED
         try:
@@ -433,7 +453,7 @@ class ApplicationPartPropfind(ApplicationBase):
             headers = {"DAV": httputils.DAV_HEADERS,
                        "Content-Type": "text/xml; charset=%s" % self._encoding}
             xml_answer = xml_propfind(base_prefix, path, xml_content,
-                                      allowed_items, user, self._encoding, max_resource_size=self._max_resource_size)
+                                      allowed_items, user, self._encoding, max_resource_size=self._max_resource_size, sharing=sharing)
             if xml_answer is None:
                 return httputils.NOT_ALLOWED
             return client.MULTI_STATUS, headers, self._xml_response(xml_answer), xmlutils.pretty_xml(xml_content)
