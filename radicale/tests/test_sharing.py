@@ -1144,10 +1144,10 @@ class TestSharingApiSanity(BaseTest):
 
         json_dict: dict
 
-        path_mapped = "/owner/calendar.ics/"
-        path_shared_r = "/user/calendar-shared-by-owner-r.ics/"
-        path_shared_w = "/user/calendar-shared-by-owner-w.ics/"
-        path_shared_rw = "/user/calendar-shared-by-owner-rw.ics/"
+        path_mapped = "/owner/calendarPP.ics/"
+        path_shared_r = "/user/calendarPP-shared-by-owner-r.ics/"
+        path_shared_w = "/user/calendarPP-shared-by-owner-w.ics/"
+        path_shared_rw = "/user/calendarPP-shared-by-owner-rw.ics/"
 
         logging.info("\n*** prepare and test access")
         self.mkcalendar(path_mapped, login="%s:%s" % ("owner", "ownerpw"))
@@ -1289,3 +1289,188 @@ class TestSharingApiSanity(BaseTest):
         element = prop.find(xmlutils.make_clark("D:href"))
         assert element is not None and element.text == "/owner/"
         assert "ICAL:calendar-color" not in response
+
+    def test_sharing_api_map_move(self) -> None:
+        """share-by-map API usage tests related to report."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "response_content_on_debug": "True",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+
+        json_dict: dict
+
+        path_user = "/user/calendar.ics/"
+        path_mapped1 = "/owner/calendar1.ics/"
+        path_mapped2 = "/owner/calendar2.ics/"
+        path_shared1_r = "/user/calendar1-shared-by-owner-r.ics/"
+        path_shared1_rw = "/user/calendar1-shared-by-owner-rw.ics/"
+        path_shared2_rw = "/user/calendar2-shared-by-owner-rw.ics/"
+
+        logging.info("\n*** prepare and test access")
+        self.mkcalendar(path_mapped1, login="%s:%s" % ("owner", "ownerpw"))
+        event = get_file_content("event1.ics")
+        self.put(os.path.join(path_mapped1, "event1.ics"), event, login="%s:%s" % ("owner", "ownerpw"))
+
+        self.mkcalendar(path_mapped2, login="%s:%s" % ("owner", "ownerpw"))
+        event = get_file_content("event2.ics")
+        self.put(os.path.join(path_mapped2, "event2.ics"), event, login="%s:%s" % ("owner", "ownerpw"))
+
+        self.mkcalendar(path_user, login="%s:%s" % ("user", "userpw"))
+        event = get_file_content("event3.ics")
+        self.put(os.path.join(path_user, "event3.ics"), event, login="%s:%s" % ("user", "userpw"))
+
+        # check GET as owner
+        logging.info("\n*** GET event1 as owner (init) -> ok")
+        _, headers, answer = self.request("GET", os.path.join(path_mapped1, "event1.ics"), check=200, login="%s:%s" % ("owner", "ownerpw"))
+
+        logging.info("\n*** GET event2 as owner (init) -> ok")
+        _, headers, answer = self.request("GET", os.path.join(path_mapped2, "event2.ics"), check=200, login="%s:%s" % ("owner", "ownerpw"))
+
+        # check MOVE as owner
+        logging.info("\n*** MOVE event1 to mapped2 as owner -> ok")
+        self.request("MOVE", os.path.join(path_mapped1, "event1.ics"), check=201,
+                     login="%s:%s" % ("owner", "ownerpw"),
+                     HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_mapped2, "event1.ics"))
+
+        # check GET as user
+        logging.info("\n*** GET event1 as user -> 404")
+        _, headers, answer = self.request("GET", os.path.join(path_shared1_r, "event1.ics"), check=404, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** GET event2 as user -> 404")
+        _, headers, answer = self.request("GET", os.path.join(path_shared2_rw, "event2.ics"), check=404, login="%s:%s" % ("user", "userpw"))
+
+        # create map
+        logging.info("\n*** create map user/owner:r -> ok")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_shared1_r
+        json_dict['Permissions'] = "r"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** create map user/owner:rw -> ok")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_shared1_rw
+        json_dict['Permissions'] = "rw"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** create map user/owner:rw -> ok")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped2
+        json_dict['PathOrToken'] = path_shared2_rw
+        json_dict['Permissions'] = "rw"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        # check MOVE as user
+        logging.info("\n*** MOVE event1 of shared1 to shared2 as user -> 404 (not enabled)")
+        self.request("MOVE", os.path.join(path_shared1_r, "event1.ics"), check=404,
+                     login="%s:%s" % ("user", "userpw"),
+                     HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_shared2_rw, "event1.ics"))
+
+        logging.info("\n*** MOVE event1 of shared2 to shared1 as user -> 404 (not enabled)")
+        self.request("MOVE", os.path.join(path_shared2_rw, "event1.ics"), check=404,
+                     login="%s:%s" % ("user", "userpw"),
+                     HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_shared1_r, "event1.ics"))
+
+        # enable map by user
+        logging.info("\n*** enable map shared1_r by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_shared1_r
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
+
+        logging.info("\n*** enable map shared1_rw by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_shared1_rw
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
+
+        logging.info("\n*** enable map shared2_rw by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped2
+        json_dict['PathOrToken'] = path_shared2_rw
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
+
+        # check GET as user
+        logging.info("\n*** GET event1 as user -> 404")
+        _, headers, answer = self.request("GET", os.path.join(path_shared1_r, "event1.ics"), check=404, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** GET event1 as user -> 404")
+        _, headers, answer = self.request("GET", os.path.join(path_shared1_rw, "event1.ics"), check=404, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** GET event1 as user -> ok")
+        _, headers, answer = self.request("GET", os.path.join(path_shared2_rw, "event1.ics"), check=200, login="%s:%s" % ("user", "userpw"))
+
+        # check MOVE as user between shares
+        logging.info("\n*** MOVE event1 of shared1_r to shared2_rw as user -> 403 (not permitted to move from r)")
+        self.request("MOVE", os.path.join(path_shared1_r, "event1.ics"), check=403,
+                     login="%s:%s" % ("user", "userpw"),
+                     HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_shared2_rw, "event1.ics"))
+
+        logging.info("\n*** MOVE event1 of shared2_rw to shared1_r as user -> 403 (not permitted to move to r)")
+        self.request("MOVE", os.path.join(path_shared2_rw, "event1.ics"), check=403,
+                     login="%s:%s" % ("user", "userpw"),
+                     HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_shared1_r, "event1.ics"))
+
+        logging.info("\n*** MOVE event1 of shared1_rw to shared2_rw as user -> 404 (already moved by owner)")
+        self.request("MOVE", os.path.join(path_shared1_rw, "event1.ics"), check=404,
+                     login="%s:%s" % ("user", "userpw"),
+                     HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_shared2_rw, "event1.ics"))
+
+        logging.info("\n*** MOVE event1 of shared2_rw to shared1_rw as user -> 201")
+        self.request("MOVE", os.path.join(path_shared2_rw, "event1.ics"), check=201,
+                     login="%s:%s" % ("user", "userpw"),
+                     HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_shared1_rw, "event1.ics"))
+
+        # check GET as user
+        logging.info("\n*** GET event1 as user -> ok")
+        _, headers, answer = self.request("GET", os.path.join(path_shared1_r, "event1.ics"), check=200, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** GET event1 as user -> ok")
+        _, headers, answer = self.request("GET", os.path.join(path_shared1_rw, "event1.ics"), check=200, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** GET event1 as user -> 404")
+        _, headers, answer = self.request("GET", os.path.join(path_shared2_rw, "event1.ics"), check=404, login="%s:%s" % ("user", "userpw"))
+
+        # check MOVE as user between shares and own calendar
+        logging.info("\n*** GET event3 as user -> 200")
+        _, headers, answer = self.request("GET", os.path.join(path_user, "event3.ics"), check=200, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** GET event3 as user from shared2_rw -> 404")
+        _, headers, answer = self.request("GET", os.path.join(path_shared2_rw, "event3.ics"), check=404, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** MOVE event3 of own to shared2_rw as user -> 201")
+        self.request("MOVE", os.path.join(path_user, "event3.ics"), check=201,
+                     login="%s:%s" % ("user", "userpw"),
+                     HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_shared2_rw, "event3.ics"))
+
+        logging.info("\n*** GET event3 as user from shared2_rw -> 200")
+        _, headers, answer = self.request("GET", os.path.join(path_shared2_rw, "event3.ics"), check=200, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** GET event3 as user -> 404")
+        _, headers, answer = self.request("GET", os.path.join(path_user, "event3.ics"), check=404, login="%s:%s" % ("user", "userpw"))
