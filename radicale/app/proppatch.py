@@ -37,7 +37,7 @@ from radicale.log import logger
 
 def xml_proppatch(base_prefix: str, path: str,
                   xml_request: Optional[ET.Element],
-                  collection: storage.BaseCollection) -> ET.Element:
+                  collection: storage.BaseCollection, sharing: Union[dict | None] = None) -> ET.Element:
     """Read and answer PROPPATCH requests.
 
     Read rfc4918-9.2 for info.
@@ -48,6 +48,9 @@ def xml_proppatch(base_prefix: str, path: str,
     multistatus.append(response)
     href = ET.Element(xmlutils.make_clark("D:href"))
     href.text = xmlutils.make_href(base_prefix, path)
+    if sharing:
+        # backmap
+        href.text = href.text.replace(sharing['PathMapped'], sharing['PathOrToken'])
     response.append(href)
     # Create D:propstat element for props with status 200 OK
     propstat = ET.Element(xmlutils.make_clark("D:propstat"))
@@ -75,7 +78,17 @@ class ApplicationPartProppatch(ApplicationBase):
     def do_PROPPATCH(self, environ: types.WSGIEnviron, base_prefix: str,
                      path: str, user: str, remote_host: str, remote_useragent: str) -> types.WSGIResponse:
         """Manage PROPPATCH request."""
-        access = Access(self._rights, user, path)
+        # Sharing by token or map
+        sharing = self._sharing.sharing_collection_resolver(path, user)
+        if sharing:
+            # overwrite and run through extended permission check
+            path = sharing['PathMapped']
+            user = sharing['Owner']
+            permissions_filter = sharing['Permissions']
+            access = Access(self._rights, user, path, permissions_filter)
+        else:
+            # default permission check
+            access = Access(self._rights, user, path)
         if not access.check("w"):
             return httputils.NOT_ALLOWED
         try:
@@ -99,7 +112,7 @@ class ApplicationPartProppatch(ApplicationBase):
                        "Content-Type": "text/xml; charset=%s" % self._encoding}
             try:
                 xml_answer = xml_proppatch(base_prefix, path, xml_content,
-                                           item)
+                                           item, sharing)
                 if xml_content is not None:
                     content = DefusedET.tostring(
                         xml_content,
