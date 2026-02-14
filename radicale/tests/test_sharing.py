@@ -697,12 +697,12 @@ class TestSharingApiSanity(BaseTest):
 
         json_dict: dict
 
-        path_share1 = "/user1/calendar-shared-by-owner1.ics"
-        path_mapped1 = "/owner1/calendar1.ics"
-        path_share2 = "/user2/calendar-shared-by-owner2.ics"
-        path_mapped2 = "/owner2/calendar2.ics"
+        path_share1 = "/user1/calendar-shared-by-owner1.ics/"
+        path_mapped1 = "/owner1/calendar1.ics/"
+        path_share2 = "/user2/calendar-shared-by-owner2.ics/"
+        path_mapped2 = "/owner2/calendar2.ics/"
 
-        logging.info("\n*** prepare and test access")
+        logging.info("\n*** prepare")
         self.mkcalendar(path_mapped1, login="%s:%s" % ("owner1", "owner1pw"))
         event = get_file_content("event1.ics")
         path = path_mapped1 + "/event1.ics"
@@ -713,18 +713,19 @@ class TestSharingApiSanity(BaseTest):
         path = path_mapped2 + "/event1.ics"
         self.put(path, event, login="%s:%s" % ("owner2", "owner2pw"))
 
-        logging.info("\n*** create map user1/owner1 as owner -> fail")
+        logging.info("\n*** create map user1/owner1 as owner(wrong owner) -> fail")
         json_dict = {}
         json_dict['User'] = "user1"
         json_dict['PathMapped'] = path_mapped1
         json_dict['PathOrToken'] = path_share1
         _, headers, answer = self._sharing_api_json("map", "create", 403, "owner:ownerpw", json_dict)
 
-        logging.info("\n*** create map user1/owner1 -> ok")
+        logging.info("\n*** create map user1/owner1:r -> ok")
         json_dict = {}
         json_dict['User'] = "user1"
         json_dict['PathMapped'] = path_mapped1
         json_dict['PathOrToken'] = path_share1
+        json_dict['Permissions'] = "r"
         _, headers, answer = self._sharing_api_json("map", "create", 200, "owner1:owner1pw", json_dict)
         answer_dict = json.loads(answer)
         assert answer_dict['Status'] == "success"
@@ -736,11 +737,12 @@ class TestSharingApiSanity(BaseTest):
         json_dict['PathOrToken'] = path_share1
         _, headers, answer = self._sharing_api_json("map", "create", 409, "owner1:owner1pw", json_dict)
 
-        logging.info("\n*** create map user2/owner2 -> ok")
+        logging.info("\n*** create map user2/owner2:rw -> ok")
         json_dict = {}
         json_dict['User'] = "user2"
         json_dict['PathMapped'] = path_mapped2
         json_dict['PathOrToken'] = path_share2
+        json_dict['Permissions'] = "rw"
         _, headers, answer = self._sharing_api_json("map", "create", 200, "owner2:owner2pw", json_dict)
         answer_dict = json.loads(answer)
         assert answer_dict['Status'] == "success"
@@ -917,5 +919,25 @@ class TestSharingApiSanity(BaseTest):
 
         logging.info("\n*** fetch event as owner -> ok")
         _, headers, answer = self.request("GET", path_mapped + "event3.ics", check=200, login="%s:%s" % ("owner", "ownerpw"))
+
+        # DELETE
+        logging.info("\n*** DELETE from collection by user via map:r -> fail")
+        _, headers, answer = self.request("DELETE", path_share_r + "event1.ics", check=403, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** DELETE from collection by user via map:rw -> ok")
+        _, headers, answer = self.request("DELETE", path_share_rw + "event2.ics", check=200, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** DELETE from collection by user via map:w -> ok")
+        _, headers, answer = self.request("DELETE", path_share_w + "event3.ics", check=200, login="%s:%s" % ("user", "userpw"))
+
+        # check results
+        logging.info("\n*** fetch event as owner -> ok")
+        _, headers, answer = self.request("GET", path_mapped + "event1.ics", check=200, login="%s:%s" % ("owner", "ownerpw"))
+
+        logging.info("\n*** fetch event as owner -> fail")
+        _, headers, answer = self.request("GET", path_mapped + "event2.ics", check=404, login="%s:%s" % ("owner", "ownerpw"))
+
+        logging.info("\n*** fetch event as owner -> fail")
+        _, headers, answer = self.request("GET", path_mapped + "event3.ics", check=404, login="%s:%s" % ("owner", "ownerpw"))
 
     # TODO hide+unhide for REPORT
