@@ -33,7 +33,7 @@ from typing import Iterator, List, Mapping, MutableMapping, Optional, Tuple
 import vobject
 
 import radicale.item as radicale_item
-from radicale import (httputils, pathutils, rights, sharing, storage, types, utils,
+from radicale import (httputils, pathutils, rights, storage, types, utils,
                       xmlutils)
 from radicale.app.base import Access, ApplicationBase
 from radicale.hook import HookNotificationItem, HookNotificationItemTypes
