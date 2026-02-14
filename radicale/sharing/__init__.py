@@ -226,7 +226,7 @@ class BaseSharing:
                         User=user)
                 if result:
                     result['PathMapped'] = path.replace(parent_path, result['PathMapped'])
-                    logger.debug("TRACE/sharing/resolver/map: replaced parent_path: %r", result['PathMapped'])
+                    logger.debug("TRACE/sharing/resolver/map: PathMapped=%r Permissions=%r by parent_path=%r", result['PathMapped'], result['Permissions'], parent_path)
                     return result
                 else:
                     logger.debug("TRACE/sharing_by_map: not found")
