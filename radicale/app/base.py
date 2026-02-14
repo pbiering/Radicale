@@ -109,6 +109,7 @@ class Access:
     permissions: str
     _rights: rights.BaseRights
     _parent_permissions: Optional[str]
+    _permissions_filter: Union[str | None] = None
 
     def __init__(self, rights: rights.BaseRights, user: str, path: str, permissions_filter: Union[str | None] = None
                  ) -> None:
@@ -119,8 +120,8 @@ class Access:
             posixpath.dirname(pathutils.strip_path(path)), True)
         self.permissions = self._rights.authorization(self.user, self.path)
         if permissions_filter is not None:
+            self._permissions_filter = permissions_filter
             permissions_filtered = intersect(self.permissions, permissions_filter)
-            logger.debug("TRACE/Access: permissions filtered: %r by %r to %r", self.permissions, permissions_filter, permissions_filtered)
             self.permissions = permissions_filtered
         self._parent_permissions = None
 
@@ -131,6 +132,9 @@ class Access:
         if self._parent_permissions is None:
             self._parent_permissions = self._rights.authorization(
                 self.user, self.parent_path)
+        if self._permissions_filter is not None:
+            parent_permissions_filtered = intersect(self._parent_permissions, self._permissions_filter)
+            self._parent_permissions = parent_permissions_filtered
         return self._parent_permissions
 
     def check(self, permission: str,
