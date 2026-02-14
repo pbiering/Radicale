@@ -149,8 +149,8 @@ def free_busy_report(base_prefix: str, path: str, xml_request: Optional[ET.Eleme
 def xml_report(base_prefix: str, path: str, xml_request: Optional[ET.Element],
                collection: storage.BaseCollection, encoding: str,
                unlock_storage_fn: Callable[[], None],
-               max_occurrence: int = 0, user: str = "", remote_addr: str = "", remote_useragent: str = ""
-               ) -> Tuple[int, ET.Element]:
+               max_occurrence: int = 0, user: str = "", remote_addr: str = "", remote_useragent: str = "",
+               sharing: Union[dict | None] = None) -> Tuple[int, ET.Element]:
     """Read and answer REPORT requests that return XML.
 
     Read rfc3253-3.6 for info.
@@ -354,7 +354,7 @@ def xml_report(base_prefix: str, path: str, xml_request: Optional[ET.Element],
         if found_props or not_found_props:
             multistatus.append(xml_item_response(
                 base_prefix, uri, found_props=found_props,
-                not_found_props=not_found_props, found_item=True))
+                not_found_props=not_found_props, found_item=True, sharing=sharing))
 
     return client.MULTI_STATUS, multistatus
 
@@ -705,11 +705,13 @@ def _find_overridden(
 def xml_item_response(base_prefix: str, href: str,
                       found_props: Sequence[ET.Element] = (),
                       not_found_props: Sequence[ET.Element] = (),
-                      found_item: bool = True) -> ET.Element:
+                      found_item: bool = True, sharing: Union[dict | None] = None) -> ET.Element:
     response = ET.Element(xmlutils.make_clark("D:response"))
 
     href_element = ET.Element(xmlutils.make_clark("D:href"))
     href_element.text = xmlutils.make_href(base_prefix, href)
+    if sharing:
+        href_element.text = href_element.text.replace(sharing['PathMapped'], sharing['PathOrToken'])
     response.append(href_element)
 
     if found_item:
@@ -811,12 +813,12 @@ class ApplicationPartReport(ApplicationBase):
                   path: str, user: str, remote_host: str, remote_useragent: str) -> types.WSGIResponse:
         """Manage REPORT request."""
         # Sharing by token or map
-        result = self._sharing.sharing_collection_resolver(path, user)
-        if result:
+        sharing = self._sharing.sharing_collection_resolver(path, user)
+        if sharing:
             # overwrite and run through extended permission check
-            path = result['PathMapped']
-            user = result['Owner']
-            permissions_filter = result['Permissions']
+            path = sharing['PathMapped']
+            user = sharing['Owner']
+            permissions_filter = sharing['Permissions']
             access = Access(self._rights, user, path, permissions_filter)
         else:
             # default permission check
@@ -862,7 +864,7 @@ class ApplicationPartReport(ApplicationBase):
                 try:
                     status, xml_answer = xml_report(
                         base_prefix, path, xml_content, collection, self._encoding,
-                        lock_stack.close, max_occurrence, user, remote_host, remote_useragent)
+                        lock_stack.close, max_occurrence, user, remote_host, remote_useragent, sharing=sharing)
                 except ValueError as e:
                     logger.warning(
                         "Bad REPORT request on %r: %s", path, e, exc_info=True)
