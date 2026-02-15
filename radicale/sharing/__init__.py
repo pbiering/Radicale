@@ -151,6 +151,19 @@ class BaseSharing:
         """ create sharing """
         return {"status": "not-implemented"}
 
+    def update_sharing(self,
+                       ShareType: str,
+                       PathOrToken: str,
+                       Owner: str,
+                       User: Union[str | None] = None,
+                       PathMapped: Union[str | None] = None,
+                       Permissions: Union[str | None] = None,
+                       EnabledByOwner: Union[bool | None] = None,
+                       HiddenByOwner:  Union[bool | None] = None,
+                       Timestamp: int = 0) -> dict:
+        """ update sharing """
+        return {"status": "not-implemented"}
+
     def delete_sharing(self,
                        ShareType: str,
                        PathOrToken: str,
@@ -407,11 +420,11 @@ class BaseSharing:
         PathMapped: str
         Owner: str = user
         User: Union[str | None] = None
-        Permissions: str = ""          # no permissions by default
-        EnabledByOwner: bool = False   # security by default
-        HiddenByOwner:  bool = True    # security by default
-        EnabledByUser:  bool = False   # security by default
-        HiddenByUser:   bool = True    # security by default
+        Permissions: Union[str | None] = None  # no permissions by default
+        EnabledByOwner: Union[bool | None] = None
+        HiddenByOwner:  Union[bool | None] = None
+        EnabledByUser:  Union[bool | None] = None
+        HiddenByUser:   Union[bool | None] = None
 
         # parameters sanity check
         for key in request_data:
@@ -475,13 +488,16 @@ class BaseSharing:
                 return httputils.BAD_REQUEST
             PathOrToken = request_data['PathOrToken']
 
+        if 'Permissions' in request_data:
+            Permissions = request_data['Permissions']
+
         if ShareType == "map":
             if action == 'info':
                 # ignored
                 pass
             else:
                 if 'User' not in request_data:
-                    if action not in ['list', 'delete']:
+                    if action not in ['list', 'delete', 'update']:
                         logger.warning(api_info + ": missing User")
                         return httputils.BAD_REQUEST
                     else:
@@ -525,14 +541,19 @@ class BaseSharing:
             logger.debug("TRACE/" + api_info + ": start")
             if 'Permissions' not in request_data:
                 Permissions = "r"
-            else:
-                Permissions = request_data['Permissions']
 
             if 'Enabled' in request_data:
                 EnabledByOwner = config._convert_to_bool(request_data['Enabled'])
+            else:
+                EnabledByOwner = False # security by default
 
             if 'Hidden' in request_data:
                 HiddenByOwner = config._convert_to_bool(request_data['Hidden'])
+            else:
+                HiddenByOwner = True # security by default
+
+            EnabledByUser = False # security by default
+            HiddenByUser = True # security by default
 
             if ShareType == "token":
                 # check access Permissions
@@ -608,6 +629,52 @@ class BaseSharing:
             if ShareType == "token":
                 logger.info(api_info + "(success): %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
                 answer['PathOrToken'] = token
+
+        # action: update 
+        elif action == "update":
+            logger.debug("TRACE/" + api_info + ": start")
+
+            if PathOrToken is None:
+                return httputils.BAD_REQUEST
+
+            if ShareType == "token":
+                result = self.update_sharing(
+                       ShareType=ShareType,
+                       PathMapped=PathMapped,
+                       Permissions=Permissions,
+                       EnabledByOwner=EnabledByOwner,
+                       HiddenByOwner=HiddenByOwner,
+                       PathOrToken=str(PathOrToken),  # verification above that it is not None
+                       Owner=Owner)
+
+            elif ShareType == "map":
+                result = self.update_sharing(
+                       ShareType=ShareType,
+                       PathMapped=PathMapped,
+                       Permissions=Permissions,
+                       EnabledByOwner=EnabledByOwner,
+                       HiddenByOwner=HiddenByOwner,
+                       PathOrToken=str(PathOrToken),  # verification above that it is not None
+                       Owner=Owner)
+
+            else:
+                logger.error(api_info + ": unsupported for ShareType=%r", ShareType)
+                return httputils.BAD_REQUEST
+
+            # result handling
+            if result['status'] == "not-found":
+                return httputils.NOT_FOUND
+            elif result['status'] == "permission-denied":
+                return httputils.NOT_ALLOWED
+            elif result['status'] == "success":
+                answer['Status'] = "success"
+                pass
+            else:
+                if ShareType == "token":
+                    logger.info("Update of sharing-by-token: %r not successful", request_data['PathOrToken'])
+                elif ShareType == "map":
+                    logger.info("Update of sharing-by-map: %r not successful", request_data['PathOrToken'])
+                return httputils.BAD_REQUEST
 
         # action: delete
         elif action == "delete":
