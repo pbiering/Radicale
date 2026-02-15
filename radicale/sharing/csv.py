@@ -423,7 +423,7 @@ class Sharing(sharing.BaseSharing):
     def _load_csv(self, file: str) -> bool:
         logger.debug("sharing database load begin: %r", file)
         with open(file, 'r', newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
+            reader = csv.DictReader(csvfile, fieldnames=sharing.DB_FIELDS_V1)
             self._lines = 0
             for row in reader:
                 logger.debug("sharing database load read: %r", row)
@@ -442,8 +442,7 @@ class Sharing(sharing.BaseSharing):
                         break
                 if dup:
                     continue
-                if self._lines > 0:
-                    self._sharing_cache.append(row)
+                self._sharing_cache.append(row)
                 self._lines += 1
         logger.debug("sharing database load end: %r", file)
         return True
