@@ -940,8 +940,7 @@ class TestSharingApiSanity(BaseTest):
         logging.info("\n*** fetch event as owner -> fail")
         _, headers, answer = self.request("GET", path_mapped + "event3.ics", check=404, login="%s:%s" % ("owner", "ownerpw"))
 
-    def test_sharing_api_map_report(self) -> None:
-        # TODO: depth + hide
+    def test_sharing_api_map_report_access(self) -> None:
         """share-by-map API usage tests related to report."""
         self.configure({"auth": {"type": "htpasswd",
                                  "htpasswd_filename": self.htpasswd_file_path,
@@ -1033,6 +1032,147 @@ class TestSharingApiSanity(BaseTest):
         assert isinstance(response, dict)
         status, prop = response["D:getetag"]
         assert status == 200 and prop.text
+
+    def test_sharing_api_map_hidden(self) -> None:
+        """share-by-map API usage tests related to report checking hidden."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "response_content_on_debug": "True",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+
+        json_dict: dict
+
+        path_user_base = "/user/"
+        path_mapped_base = "/owner/"
+        path_user = path_user_base + "calendarRH.ics/"
+        path_mapped = path_mapped_base + "calendarRH.ics/"
+        path_mapped2 = path_mapped_base + "calendarRH2.ics/"
+        path_shared = path_user_base + "calendarRH-shared-by-owner.ics/"
+        path_mapped_item = os.path.join(path_mapped, "event1.ics")
+        path_shared_item = os.path.join(path_shared, "event1.ics")
+        path_user_item = os.path.join(path_user, "event2.ics")
+
+        logging.info("\n*** prepare and test access")
+        self.mkcalendar(path_mapped, login="%s:%s" % ("owner", "ownerpw"))
+        event = get_file_content("event1.ics")
+        self.put(path_mapped_item, event, login="%s:%s" % ("owner", "ownerpw"))
+
+        self.mkcalendar(path_mapped2, login="%s:%s" % ("owner", "ownerpw"))
+
+        self.mkcalendar(path_user, login="%s:%s" % ("user", "userpw"))
+        event = get_file_content("event2.ics")
+        self.put(path_user_item, event, login="%s:%s" % ("user", "userpw"))
+
+        # check GET
+        logging.info("\n*** GET event1 as owner -> 200")
+        _, headers, answer = self.request("GET", path_mapped_item, check=200, login="%s:%s" % ("owner", "ownerpw"))
+
+        logging.info("\n*** GET event2 as user -> 200")
+        _, headers, answer = self.request("GET", path_user_item, check=200, login="%s:%s" % ("user", "userpw"))
+
+        logging.info("\n*** GET collections as user -> 403")
+        _, headers, answer = self.request("GET", path_user_base, check=403, login="%s:%s" % ("user", "userpw"))
+
+        # check PROPFIND as user
+        logging.info("\n*** PROPFIND collection user -> ok")
+        _, responses = self.propfind(path_user_base, """\
+<?xml version="1.0" encoding="utf-8"?>
+<propfind xmlns="DAV:">
+    <calendar-home-set xmlns="urn:ietf:params:xml:ns:caldav" />
+</propfind>""", login="%s:%s" % ("user", "userpw"), HTTP_DEPTH="1")
+        assert len(responses) == 2
+        logging.info("response: %r", responses)
+        response = responses[path_user]
+        assert isinstance(response, dict)
+
+        # create map
+        logging.info("\n*** create map user/owner -> ok")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared
+        json_dict['Permissions'] = "r"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        # check PROPFIND as owner
+        logging.info("\n*** PROPFIND collection owner -> ok")
+        _, responses = self.propfind(path_mapped_base, """\
+<?xml version="1.0" encoding="utf-8"?>
+<propfind xmlns="DAV:">
+    <calendar-home-set xmlns="urn:ietf:params:xml:ns:caldav" />
+</propfind>""", login="%s:%s" % ("owner", "ownerpw"), HTTP_DEPTH="1")
+        assert len(responses) == 3
+        logging.info("response: %r", responses)
+        response = responses[path_mapped]
+        assert isinstance(response, dict)
+        response = responses[path_mapped2]
+        assert isinstance(response, dict)
+
+        # check PROPFIND as user
+        logging.info("\n*** PROPFIND collection user -> ok")
+        _, responses = self.propfind(path_user_base, """\
+<?xml version="1.0" encoding="utf-8"?>
+<propfind xmlns="DAV:">
+    <calendar-home-set xmlns="urn:ietf:params:xml:ns:caldav" />
+</propfind>""", login="%s:%s" % ("user", "userpw"), HTTP_DEPTH="1")
+        assert len(responses) == 2
+        logging.info("response: %r", responses)
+        response = responses[path_user]
+        assert isinstance(response, dict)
+
+        # enable map by user
+        logging.info("\n*** enable map by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared
+        _, headers, answer = self._sharing_api_json("map", "enable", 200, "user:userpw", json_dict)
+
+        # check PROPFIND as user
+        logging.info("\n*** PROPFIND collection user -> ok")
+        _, responses = self.propfind(path_user_base, """\
+<?xml version="1.0" encoding="utf-8"?>
+<propfind xmlns="DAV:">
+    <calendar-home-set xmlns="urn:ietf:params:xml:ns:caldav" />
+</propfind>""", login="%s:%s" % ("user", "userpw"), HTTP_DEPTH="1")
+        assert len(responses) == 2
+        logging.info("response: %r", responses)
+        response = responses[path_user]
+        assert isinstance(response, dict)
+
+        # unhide map by user
+        logging.info("\n*** unhide map by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped
+        json_dict['PathOrToken'] = path_shared
+        _, headers, answer = self._sharing_api_json("map", "unhide", 200, "user:userpw", json_dict)
+
+        # check PROPFIND as user
+        logging.info("\n*** PROPFIND collection user -> ok (now 3 items)")
+        _, responses = self.propfind(path_user_base, """\
+<?xml version="1.0" encoding="utf-8"?>
+<propfind xmlns="DAV:">
+    <calendar-home-set xmlns="urn:ietf:params:xml:ns:caldav" />
+</propfind>""", login="%s:%s" % ("user", "userpw"), HTTP_DEPTH="1")
+        assert len(responses) == 3
+        logging.info("response: %r", responses)
+        response = responses[path_user]
+        assert isinstance(response, dict)
+        response = responses[path_shared]
+        assert isinstance(response, dict)
+
 
     def test_sharing_api_map_propfind(self) -> None:
         """share-by-map API usage tests related to propfind."""
@@ -1306,12 +1446,12 @@ class TestSharingApiSanity(BaseTest):
 
         json_dict: dict
 
-        path_user = "/user/calendar.ics/"
-        path_mapped1 = "/owner/calendar1.ics/"
-        path_mapped2 = "/owner/calendar2.ics/"
-        path_shared1_r = "/user/calendar1-shared-by-owner-r.ics/"
-        path_shared1_rw = "/user/calendar1-shared-by-owner-rw.ics/"
-        path_shared2_rw = "/user/calendar2-shared-by-owner-rw.ics/"
+        path_user = "/user/calendarM.ics/"
+        path_mapped1 = "/owner/calendar1M.ics/"
+        path_mapped2 = "/owner/calendar2M.ics/"
+        path_shared1_r = "/user/calendar1M-shared-by-owner-r.ics/"
+        path_shared1_rw = "/user/calendar1M-shared-by-owner-rw.ics/"
+        path_shared2_rw = "/user/calendar2M-shared-by-owner-rw.ics/"
 
         logging.info("\n*** prepare and test access")
         self.mkcalendar(path_mapped1, login="%s:%s" % ("owner", "ownerpw"))
@@ -1327,10 +1467,10 @@ class TestSharingApiSanity(BaseTest):
         self.put(os.path.join(path_user, "event3.ics"), event, login="%s:%s" % ("user", "userpw"))
 
         # check GET as owner
-        logging.info("\n*** GET event1 as owner (init) -> ok")
+        logging.info("\n*** GET mapped1/event1 as owner (init) -> ok")
         _, headers, answer = self.request("GET", os.path.join(path_mapped1, "event1.ics"), check=200, login="%s:%s" % ("owner", "ownerpw"))
 
-        logging.info("\n*** GET event2 as owner (init) -> ok")
+        logging.info("\n*** GET mapped2/event2 as owner (init) -> ok")
         _, headers, answer = self.request("GET", os.path.join(path_mapped2, "event2.ics"), check=200, login="%s:%s" % ("owner", "ownerpw"))
 
         # check MOVE as owner
@@ -1338,6 +1478,9 @@ class TestSharingApiSanity(BaseTest):
         self.request("MOVE", os.path.join(path_mapped1, "event1.ics"), check=201,
                      login="%s:%s" % ("owner", "ownerpw"),
                      HTTP_DESTINATION="http://127.0.0.1/"+os.path.join(path_mapped2, "event1.ics"))
+
+        logging.info("\n*** GET mapped2/event1 as owner (after move) -> ok")
+        _, headers, answer = self.request("GET", os.path.join(path_mapped2, "event1.ics"), check=200, login="%s:%s" % ("owner", "ownerpw"))
 
         # check GET as user
         logging.info("\n*** GET event1 as user -> 404")
