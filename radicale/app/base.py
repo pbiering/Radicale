@@ -116,8 +116,7 @@ class Access:
         self._rights = rights
         self.user = user
         self.path = path
-        self.parent_path = pathutils.unstrip_path(
-            posixpath.dirname(pathutils.strip_path(path)), True)
+        self.parent_path = pathutils.parent_path(path)
         self.permissions = self._rights.authorization(self.user, self.path)
         if permissions_filter is not None:
             self._permissions_filter = permissions_filter
