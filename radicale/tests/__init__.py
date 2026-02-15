@@ -109,7 +109,7 @@ class BaseTest:
         if content_type:
             environ["CONTENT_TYPE"] = content_type
         if accept:
-            environ["ACCEPT"] = accept
+            environ["HTTP_ACCEPT"] = accept
         environ["REQUEST_METHOD"] = method.upper()
         environ["PATH_INFO"] = path
         if data is not None:

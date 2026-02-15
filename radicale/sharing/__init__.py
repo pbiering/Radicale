@@ -403,7 +403,7 @@ class BaseSharing:
             return httputils.BAD_REQUEST
 
         # check for requested output type
-        accept = environ.get("ACCEPT", "")
+        accept = environ.get("HTTP_ACCEPT", "")
         if 'application/json' in accept:
             output_format = "json"
         elif 'text/csv' in accept:
