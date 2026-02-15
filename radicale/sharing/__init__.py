@@ -28,7 +28,6 @@ from typing import Sequence, Union
 from urllib.parse import parse_qs
 
 from radicale import config, httputils, pathutils, rights, types, utils
-from radicale.app.base import Access
 from radicale.log import logger
 
 INTERNAL_TYPES: Sequence[str] = ("csv", "sqlite", "none")
@@ -287,6 +286,9 @@ class BaseSharing:
 
     # POST API
     def post(self, environ: types.WSGIEnviron, base_prefix: str, path: str, user: str) -> types.WSGIResponse:
+        #Late import to avoid circular dependency in config
+        from radicale.app.base import Access
+        
         """POST request.
 
         ``base_prefix`` is sanitized and never ends with "/".
