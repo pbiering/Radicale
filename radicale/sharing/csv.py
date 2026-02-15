@@ -453,7 +453,7 @@ class Sharing(sharing.BaseSharing):
             reader = csv.DictReader(csvfile, fieldnames=sharing.DB_FIELDS_V1)
             self._lines = 0
             for row in reader:
-                logger.debug("sharing database load read: %r", row)
+                # logger.debug("sharing database load read: %r", row)
                 if self._lines == 0:
                     # header line, check
                     for fieldname in sharing.DB_FIELDS_V1:
@@ -475,6 +475,7 @@ class Sharing(sharing.BaseSharing):
                         break
                 if dup:
                     continue
+                # logger.debug("sharing database load add: %r", row)
                 self._sharing_cache.append(row)
                 self._lines += 1
         logger.debug("sharing database load end: %r", file)
