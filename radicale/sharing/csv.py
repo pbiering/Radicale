@@ -91,16 +91,16 @@ class Sharing(sharing.BaseSharing):
                 continue
             elif User and row['User'] != User:
                 continue
-            elif row['EnabledByOwner'] != str(True):
+            elif row['EnabledByOwner'] != True:
                 continue
-            elif row['EnabledByUser'] != str(True):
+            elif row['EnabledByUser'] != True:
                 continue
             PathMapped = row['PathMapped']
             Owner = row['Owner']
             UserShare = row['User']
             Permissions = row['Permissions']
-            Hidden: bool = (row['HiddenByOwner'] == str(True)) or (row['HiddenByUser'] == str(True))
-            logger.debug("TRACE/sharing: map %r to %r (Owner=%r User=%r Permissions=%r Hidden=%s)", PathOrToken, PathMapped, Owner, UserShare, Permissions, str(Hidden))
+            Hidden: bool = (row['HiddenByOwner'] or row['HiddenByUser'])
+            logger.debug("TRACE/sharing: map %r to %r (Owner=%r User=%r Permissions=%r Hidden=%s)", PathOrToken, PathMapped, Owner, UserShare, Permissions, Hidden)
             return {
                     "mapped": True,
                     "PathOrToken": PathOrToken,
@@ -139,13 +139,13 @@ class Sharing(sharing.BaseSharing):
                 continue
             elif PathMapped is not None and row['PathMapped'] != PathMapped:
                 continue
-            elif EnabledByOwner is not None and row['EnabledByOwner'] != str(EnabledByOwner):
+            elif EnabledByOwner is not None and row['EnabledByOwner'] != EnabledByOwner:
                 continue
-            elif EnabledByUser is not None and row['EnabledByUser'] != str(EnabledByUser):
+            elif EnabledByUser is not None and row['EnabledByUser'] != EnabledByUser:
                 continue
-            elif HiddenByOwner is not None and row['HiddenByOwner'] != str(HiddenByOwner):
+            elif HiddenByOwner is not None and row['HiddenByOwner'] != HiddenByOwner:
                 continue
-            elif HiddenByUser is not None and row['HiddenByUser'] != str(HiddenByUser):
+            elif HiddenByUser is not None and row['HiddenByUser'] != HiddenByUser:
                 continue
             logger.debug("TRACE/sharing/list/row: add: %r", row)
             result.append(row)
@@ -192,10 +192,10 @@ class Sharing(sharing.BaseSharing):
                "Owner": Owner,
                "User": User,
                "Permissions": Permissions,
-               "EnabledByOwner": str(EnabledByOwner),
-               "EnabledByUser": str(EnabledByUser),
-               "HiddenByOwner": str(HiddenByOwner),
-               "HiddenByUser": str(HiddenByUser),
+               "EnabledByOwner": EnabledByOwner,
+               "EnabledByUser": EnabledByUser,
+               "HiddenByOwner": HiddenByOwner,
+               "HiddenByUser": HiddenByUser,
                "TimestampCreated": str(Timestamp),
                "TimestampUpdated": str(Timestamp)}
         logger.debug("TRACE/sharing/*/create: add row: %r", row)
@@ -378,24 +378,24 @@ class Sharing(sharing.BaseSharing):
             if row['Owner'] == OwnerOrUser:
                 logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": Owner=%r User=%r PathOrToken=%r index=%d", OwnerOrUser, User, PathOrToken, index)
                 if Action == "disable":
-                    row['EnabledByOwner'] = str(False)
+                    row['EnabledByOwner'] = False
                 elif Action == "enable":
-                    row['EnabledByOwner'] = str(True)
+                    row['EnabledByOwner'] = True
                 elif Action == "hide":
-                    row['HiddenByOwner'] = str(True)
+                    row['HiddenByOwner'] = True
                 elif Action == "unhide":
-                    row['HiddenByOwner'] = str(False)
+                    row['HiddenByOwner'] = False
                 row['TimestampUpdated'] = str(Timestamp)
             if row['User'] == OwnerOrUser:
                 logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": User=%r PathOrToken=%r index=%d", OwnerOrUser, PathOrToken, index)
                 if Action == "disable":
-                    row['EnabledByUser'] = str(False)
+                    row['EnabledByUser'] = False
                 elif Action == "enable":
-                    row['EnabledByUser'] = str(True)
+                    row['EnabledByUser'] = True
                 elif Action == "hide":
-                    row['HiddenByUser'] = str(True)
+                    row['HiddenByUser'] = True
                 elif Action == "unhide":
-                    row['HiddenByUser'] = str(False)
+                    row['HiddenByUser'] = False
 
             row['TimestampUpdated'] = str(Timestamp)
 

@@ -372,7 +372,7 @@ class TestSharingApiSanity(BaseTest):
         answer_dict = json.loads(answer)
         assert answer_dict['Status'] == "success"
         assert answer_dict['Lines'] == 1
-        assert answer_dict['Content'][0]['EnabledByOwner'] == str(False)
+        assert answer_dict['Content'][0]['EnabledByOwner'] == False
 
         logging.info("\n*** enable token#2 (json->json)")
         json_dict = {}
@@ -417,7 +417,7 @@ class TestSharingApiSanity(BaseTest):
         answer_dict = json.loads(answer)
         assert answer_dict['Status'] == "success"
         assert answer_dict['Lines'] == 1
-        assert answer_dict['Content'][0]['HiddenByOwner'] == str(False)
+        assert answer_dict['Content'][0]['HiddenByOwner'] == False
 
         logging.info("\n*** delete token#2 (json->json)")
         json_dict = {}
@@ -635,10 +635,10 @@ class TestSharingApiSanity(BaseTest):
         assert answer_dict['Content'][0]['ShareType'] == "map"
         assert answer_dict['Content'][0]['Owner'] == "owner"
         assert answer_dict['Content'][0]['User'] == "user"
-        assert answer_dict['Content'][0]['EnabledByOwner'] == str(False)
-        assert answer_dict['Content'][0]['EnabledByUser'] == str(False)
-        assert answer_dict['Content'][0]['HiddenByOwner'] == str(True)
-        assert answer_dict['Content'][0]['HiddenByUser'] == str(True)
+        assert answer_dict['Content'][0]['EnabledByOwner'] == False
+        assert answer_dict['Content'][0]['EnabledByUser'] == False
+        assert answer_dict['Content'][0]['HiddenByOwner'] == True
+        assert answer_dict['Content'][0]['HiddenByUser'] == True
         assert answer_dict['Content'][0]['Permissions'] == "r"
 
         logging.info("\n*** enable map by owner (json->json) -> 404")
