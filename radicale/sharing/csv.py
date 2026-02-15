@@ -99,35 +99,55 @@ class Sharing(sharing.BaseSharing):
             Owner = row['Owner']
             UserShare = row['User']
             Permissions = row['Permissions']
-            logger.debug("TRACE/sharing: map %r to %r (Owner=%r User=%r Permissions=%r)", PathOrToken, PathMapped, Owner, UserShare, Permissions)
+            Hidden: bool = (row['HiddenByOwner'] == str(True)) or (row['HiddenByUser'] == str(True))
+            logger.debug("TRACE/sharing: map %r to %r (Owner=%r User=%r Permissions=%r Hidden=%s)", PathOrToken, PathMapped, Owner, UserShare, Permissions, str(Hidden))
             return {
                     "mapped": True,
                     "PathOrToken": PathOrToken,
                     "PathMapped": PathMapped,
                     "Owner": Owner,
                     "User": UserShare,
+                    "Hidden": Hidden,
                     "Permissions": Permissions}
         return None
 
     def list_sharing(self,
                      ShareType: Union[str | None] = None,
-                     PathOrToken: Union[str | None] = None, PathMapped: Union[str | None] = None,
-                     Owner: Union[str | None] = None, User: Union[str | None] = None) -> list[dict]:
+                     PathOrToken: Union[str | None] = None,
+                     PathMapped: Union[str | None] = None,
+                     Owner: Union[str | None] = None,
+                     User: Union[str | None] = None,
+                     EnabledByOwner: Union[bool | None] = None,
+                     EnabledByUser: Union[bool | None] = None,
+                     HiddenByOwner: Union[bool | None] = None,
+                     HiddenByUser: Union[bool | None] = None) -> list[dict]:
         """ retrieve sharing """
         row: dict
         result = []
 
+        logger.debug("TRACE/sharing/list/called: HiddenByOwner=%s HiddenByUser=%s", HiddenByOwner, HiddenByUser)
+
         for row in self._sharing_cache:
-            if ShareType and row['ShareType'] != ShareType:
+            logger.debug("TRACE/sharing/list/row: test: %r", row)
+            if ShareType is not None and row['ShareType'] != ShareType:
                 continue
-            elif Owner and row['Owner'] != Owner:
+            elif Owner is not None and row['Owner'] != Owner:
                 continue
-            elif User and row['User'] != User:
+            elif User is not None and row['User'] != User:
                 continue
-            elif PathOrToken and row['PathOrToken'] != PathOrToken:
+            elif PathOrToken is not None and row['PathOrToken'] != PathOrToken:
                 continue
-            elif PathMapped and row['PathMapped'] != PathMapped:
+            elif PathMapped is not None and row['PathMapped'] != PathMapped:
                 continue
+            elif EnabledByOwner is not None and row['EnabledByOwner'] != str(EnabledByOwner):
+                continue
+            elif EnabledByUser is not None and row['EnabledByUser'] != str(EnabledByUser):
+                continue
+            elif HiddenByOwner is not None and row['HiddenByOwner'] != str(HiddenByOwner):
+                continue
+            elif HiddenByUser is not None and row['HiddenByUser'] != str(HiddenByUser):
+                continue
+            logger.debug("TRACE/sharing/list/row: add: %r", row)
             result.append(row)
         return result
 
