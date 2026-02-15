@@ -378,7 +378,7 @@ class BaseSharing:
             request_body = httputils.read_request_body(self.configuration, environ)
         except RuntimeError as e:
             logger.warning("Bad POST request on %r (read_request_body): %s", path, e, exc_info=True)
-            return httputils.BAD_REQUEST
+            return httputils.bad_request("Failed read POST request body")
         except socket.timeout:
             logger.debug("Client timed out", exc_info=True)
             return httputils.REQUEST_TIMEOUT
@@ -391,7 +391,7 @@ class BaseSharing:
             try:
                 request_data = json.loads(request_body)
             except json.JSONDecodeError:
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Invalid JSON")
             logger.debug("TRACE/" + api_info + " (json): %r", f"{request_data}")
         elif 'application/x-www-form-urlencoded' in content_type:
             request_parsed = parse_qs(request_body)
@@ -402,7 +402,7 @@ class BaseSharing:
             logger.debug("TRACE/" + api_info + " (form): %r", f"{request_data}")
         else:
             logger.debug("TRACE/" + api_info + ": no supported content data")
-            return httputils.BAD_REQUEST
+            return httputils.bad_request("Content-type not supported")
 
         # check for requested output type
         accept = environ.get("HTTP_ACCEPT", "")
@@ -415,13 +415,13 @@ class BaseSharing:
 
         if output_format == "csv":
             if not action == "list":
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("CSV output format is only allowed for list action")
         elif output_format == "json":
             pass
         elif output_format == "txt":
             pass
         else:
-            return httputils.BAD_REQUEST
+            return httputils.bad_request("Output format not supported")
 
         # parameters default
         PathOrToken: Union[str | None] = None
@@ -438,28 +438,29 @@ class BaseSharing:
         for key in request_data:
             if key == "Permissions":
                 if not re.search('^[a-zA-Z]+$', request_data[key]):
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Invalid value for Permissions")
             elif key == "PathOrToken":
                 if ShareType == "token":
                     if not re.search('^' + TOKEN_PATTERN_V1 + '$', request_data[key]):
                         logger.error(api_info + ": unsupported " + key)
-                        return httputils.BAD_REQUEST
+                        return httputils.bad_request("Invalid value for PathOrToken")
                 elif ShareType == "map":
                     if not re.search('^' + PATH_PATTERN + '$', request_data[key]):
                         logger.error(api_info + ": unsupported " + key)
-                        return httputils.BAD_REQUEST
+                        return httputils.bad_request("Invalid value for PathOrToken")
             elif key == "PathMapped":
                 if not re.search('^' + PATH_PATTERN + '$', request_data[key]):
                     logger.error(api_info + ": unsupported " + key)
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Invalid value for PathMapped")
             elif key == "Enabled" or key == "Hidden":
                 if not re.search('^(False|True)$', request_data[key]):
                     logger.error(api_info + ": unsupported " + key)
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Invalid value for " + key)
             elif key == "User":
                 if not re.search('^' + USER_PATTERN + '$', request_data[key]):
                     logger.error(api_info + ": unsupported " + key)
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Invalid value for User")
+
 
         # check for mandatory parameters
         if 'PathMapped' not in request_data:
@@ -475,7 +476,7 @@ class BaseSharing:
                     pass
                 else:
                     logger.error(api_info + ": missing PathMapped")
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Missing PathMapped")
         else:
             PathMapped = request_data['PathMapped']
 
@@ -485,7 +486,7 @@ class BaseSharing:
                 pass
             elif action not in ['list', 'create']:
                 logger.error(api_info + ": missing PathOrToken")
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Missing PathOrToken")
             else:
                 # PathOrToken is optional
                 pass
@@ -493,7 +494,7 @@ class BaseSharing:
             if action == "create" and ShareType == "token":
                 # not supported
                 logger.error(api_info + ": PathOrToken found but not supported")
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("PathOrToken not supported")
             PathOrToken = request_data['PathOrToken']
 
         if 'Permissions' in request_data:
@@ -507,7 +508,7 @@ class BaseSharing:
                 if 'User' not in request_data:
                     if action not in ['list', 'delete', 'update']:
                         logger.warning(api_info + ": missing User")
-                        return httputils.BAD_REQUEST
+                        return httputils.bad_request("Missing User")
                     else:
                         # optional
                         pass
@@ -587,12 +588,12 @@ class BaseSharing:
             elif ShareType == "map":
                 # check preconditions
                 if PathOrToken is None:
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Missing PathOrToken")
                 else:
                     PathOrToken = str(PathOrToken)
 
                 if User is None:
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Missing User")
                 else:
                     User = str(User)
 
@@ -621,7 +622,7 @@ class BaseSharing:
 
             else:
                 logger.error(api_info + ": unsupported for ShareType=%r", ShareType)
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Invalid share type")
 
             logger.debug("TRACE/" + api_info + ": result=%r", result)
             # result handling
@@ -632,7 +633,7 @@ class BaseSharing:
             elif result['status'] == "success":
                 answer['Status'] = "success"
             else:
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Internal failure")
 
             if ShareType == "token":
                 logger.info(api_info + "(success): %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
@@ -643,7 +644,7 @@ class BaseSharing:
             logger.debug("TRACE/" + api_info + ": start")
 
             if PathOrToken is None:
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Missing PathOrToken")
 
             if ShareType == "token":
                 result = self.update_sharing(
@@ -669,7 +670,7 @@ class BaseSharing:
 
             else:
                 logger.error(api_info + ": unsupported for ShareType=%r", ShareType)
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Invalid share type")
 
             # result handling
             if result['status'] == "not-found":
@@ -684,14 +685,14 @@ class BaseSharing:
                     logger.info("Update of sharing-by-token: %r not successful", request_data['PathOrToken'])
                 elif ShareType == "map":
                     logger.info("Update of sharing-by-map: %r not successful", request_data['PathOrToken'])
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Invalid share type")
 
         # action: delete
         elif action == "delete":
             logger.debug("TRACE/" + api_info + ": start")
 
             if PathOrToken is None:
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Missing PathOrToken")
 
             if ShareType == "token":
                 result = self.delete_sharing(
@@ -708,7 +709,7 @@ class BaseSharing:
 
             else:
                 logger.error(api_info + ": unsupported for ShareType=%r", ShareType)
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Invalid share type")
 
             # result handling
             if result['status'] == "not-found":
@@ -723,7 +724,7 @@ class BaseSharing:
                     logger.info("Delete sharing-by-token: %r of user %r not successful", request_data['PathOrToken'], request_data['User'])
                 elif ShareType == "map":
                     logger.info("Delete sharing-by-map: %r of user %r not successful", request_data['PathOrToken'], request_data['User'])
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Invalid share type")
 
         # action: info
         elif action == "info":
@@ -741,7 +742,7 @@ class BaseSharing:
 
             if ShareType in ["token", "map"]:
                 if PathOrToken is None:
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Missing PathOrToken")
 
                 result = self.toggle_sharing(
                        ShareType=ShareType,
@@ -762,16 +763,16 @@ class BaseSharing:
                         pass
                 else:
                     logger.error("Toggle sharing: %r of user %s not successful", request_data['PathOrToken'], user)
-                    return httputils.BAD_REQUEST
+                    return httputils.bad_request("Internal Error")
 
             else:
                 logger.error(api_info + ": unsupported for ShareType=%r", ShareType)
-                return httputils.BAD_REQUEST
+                return httputils.bad_request("Invalid share type")
 
         else:
             # default
             logger.error(api_info + ": unsupported action=%r", action)
-            return httputils.BAD_REQUEST
+            return httputils.bad_request("Invalid action")
 
         # output handler
         logger.debug("TRACE/sharing/API/POST output format: %r", output_format)
@@ -809,6 +810,6 @@ class BaseSharing:
             return client.OK, headers, answer_raw, None
         else:
             # should not be reached
-            return httputils.BAD_REQUEST
+            return httputils.bad_request("Invalid output format")
 
         return httputils.METHOD_NOT_ALLOWED
