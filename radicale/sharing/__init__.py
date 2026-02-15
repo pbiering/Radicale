@@ -653,7 +653,8 @@ class BaseSharing:
                        EnabledByOwner=EnabledByOwner,
                        HiddenByOwner=HiddenByOwner,
                        PathOrToken=str(PathOrToken),  # verification above that it is not None
-                       Owner=Owner)
+                       Owner=Owner,
+                       Timestamp=Timestamp)
 
             elif ShareType == "map":
                 result = self.update_sharing(
@@ -663,7 +664,8 @@ class BaseSharing:
                        EnabledByOwner=EnabledByOwner,
                        HiddenByOwner=HiddenByOwner,
                        PathOrToken=str(PathOrToken),  # verification above that it is not None
-                       Owner=Owner)
+                       Owner=Owner,
+                       Timestamp=Timestamp)
 
             else:
                 logger.error(api_info + ": unsupported for ShareType=%r", ShareType)
