@@ -84,19 +84,34 @@ class Sharing(sharing.BaseSharing):
         """ retrieve sharing target and attributes by map """
         # Lookup
         logger.debug("TRACE/sharing: lookup ShareType=%r PathOrToken=%r User=%r)", ShareType, PathOrToken, User)
+
+        index = 0
+        found = False
         for row in self._sharing_cache:
+            if index == 0:
+                # skip fieldnames
+                pass
             logger.debug("TRACE/sharing: check row: %r", row)
             if row['ShareType'] != ShareType:
-                continue
-            if row['PathOrToken'] != PathOrToken:
-                continue
-            if User is not None and row['User'] != User:
-                continue
-            if row['EnabledByOwner'] != True:
-                continue
-            if row['ShareType'] == "map":
+                pass
+            elif row['PathOrToken'] != PathOrToken:
+                pass
+            elif User is not None and row['User'] != User:
+                pass
+            elif row['EnabledByOwner'] != True:
+                pass
+            elif row['ShareType'] == "map":
                 if row['EnabledByUser'] != True:
-                    continue
+                    pass
+                else:
+                    found = True
+                    break
+            else:
+                found = True
+                break
+            index += 1
+
+        if found:
             PathMapped = row['PathMapped']
             Owner = row['Owner']
             UserShare = row['User']
@@ -231,6 +246,9 @@ class Sharing(sharing.BaseSharing):
         found = False
         index = 0
         for row in self._sharing_cache:
+            if index == 0:
+                # skip fieldnames
+                pass
             if row['ShareType'] != ShareType:
                 pass
             elif row['PathOrToken'] != PathOrToken:
@@ -292,6 +310,10 @@ class Sharing(sharing.BaseSharing):
         found = False
         index = 0
         for row in self._sharing_cache:
+            logger.debug("TRACE/sharing/map/delete: check: %r", row)
+            if index == 0:
+                # skip fieldnames
+                pass
             if row['ShareType'] != ShareType:
                 pass
             elif row['PathOrToken'] != PathOrToken:
@@ -346,6 +368,9 @@ class Sharing(sharing.BaseSharing):
         found = False
         index = 0
         for row in self._sharing_cache:
+            if index == 0:
+                # skip fieldnames
+                pass
             logger.debug("TRACE/sharing/*/" + Action + ": check: %r", row)
             if row['ShareType'] != ShareType:
                 pass
