@@ -162,6 +162,7 @@ class Sharing(sharing.BaseSharing):
         """ create sharing """
         row: dict
 
+        logger.debug("TRACE/sharing: ShareType=%r", ShareType)
         if ShareType == "token":
             logger.debug("TRACE/sharing/token/create: PathOrToken=%r Owner=%r PathMapped=%r User=%r Permissions=%r", PathOrToken, Owner, PathMapped, User, Permissions)
             # check for duplicate token entry
@@ -182,6 +183,8 @@ class Sharing(sharing.BaseSharing):
                     # must be unique systemwide
                     logger.error("sharing/map/create: entry already exists: PathMapped=%r User=%r", PathMapped, User)
                     return {"status": "conflict"}
+        else:
+            return {"status": "error"}
 
         row = {"ShareType": ShareType,
                "PathOrToken": PathOrToken,
@@ -207,13 +210,12 @@ class Sharing(sharing.BaseSharing):
     def delete_sharing(self,
                        ShareType: str,
                        PathOrToken: str, Owner: str,
-                       PathMapped: Union[str | None] = None,
-                       User: Union[str | None] = None) -> dict:
+                       PathMapped: Union[str | None] = None) -> dict:
         """ delete sharing """
         if ShareType == "token":
             logger.debug("TRACE/sharing/token/delete: PathOrToken=%r Owner=%r", PathOrToken, Owner)
         elif ShareType == "map":
-            logger.debug("TRACE/sharing/map/delete: PathOrToken=%r Owner=%r PathMapped=%r User=%r", PathOrToken, Owner, PathMapped, User)
+            logger.debug("TRACE/sharing/map/delete: PathOrToken=%r Owner=%r PathMapped=%r", PathOrToken, Owner, PathMapped)
         else:
             raise  # should not be reached
 
@@ -229,8 +231,6 @@ class Sharing(sharing.BaseSharing):
                 if ShareType == "map":
                     # extra filter
                     if row['PathMapped'] != PathMapped:
-                        pass
-                    elif row['User'] != User:
                         pass
                     else:
                         found = True
