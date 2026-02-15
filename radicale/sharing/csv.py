@@ -207,6 +207,73 @@ class Sharing(sharing.BaseSharing):
         logger.error("sharing/add_sharing_by_token: cannot update CSV database")
         return {"status": "error"}
 
+    def update_sharing(self,
+                       ShareType: str,
+                       PathOrToken: str,
+                       Owner: str,
+                       User: Union[str | None] = None,
+                       PathMapped: Union[str | None] = None,
+                       Permissions: Union[str | None] = None,
+                       EnabledByOwner: Union[bool | None] = None,
+                       HiddenByOwner:  Union[bool | None] = None,
+                       Timestamp: int = 0) -> dict:
+        """ update sharing """
+        if ShareType == "token":
+            logger.debug("TRACE/sharing/token/update: PathOrToken=%r Owner=%r", PathOrToken, Owner)
+        elif ShareType == "map":
+            logger.debug("TRACE/sharing/map/update: PathOrToken=%r Owner=%r PathMapped=%r", PathOrToken, Owner, PathMapped)
+        else:
+            raise  # should not be reached
+
+        # lookup token
+        found = False
+        index = 0
+        for row in self._sharing_cache:
+            if row['ShareType'] != ShareType:
+                pass
+            elif row['PathOrToken'] != PathOrToken:
+                pass
+            else:
+                found = True
+                break
+            index += 1
+
+        if found:
+            logger.debug("TRACE/sharing/*/update: found index=%d", index)
+            if row['Owner'] != Owner:
+                return {"status": "permission-denied"}
+            logger.debug("TRACE/sharing/*/update: Owner=%r PathOrToken=%r index=%d", Owner, PathOrToken, index)
+
+            logger.debug("TRACE/sharing/*/update: orig row=%r", row)
+
+            # CSV: remove+adjust+readd
+            if PathMapped is not None:
+                row["PathMapped"] = PathMapped
+            if Permissions is not None:
+                row["Permissions"] = Permissions
+            if User is not None:
+                row["User"] = User
+            if EnabledByOwner is not None:
+                row["EnabledByOwner"] = EnabledByOwner
+            if HiddenByOwner is not None:
+                row["HiddenByOwner"] = HiddenByOwner
+            # update timestamp
+            row["TimestampUpdated"] = Timestamp
+
+            logger.debug("TRACE/sharing/*/update: adj  row=%r", row)
+
+            # TODO: add locking
+            # replace row
+            self._sharing_cache.pop(index)
+            self._sharing_cache.append(row)
+            if self._write_csv(self._sharing_db_file):
+                logger.debug("TRACE/sharing_by_token: write CSV done")
+                return {"status": "success"}
+            logger.warning("sharing/sharing_by_token: cannot update CSV database")
+            return {"status": "error"}
+        else:
+            return {"status": "not-found"}
+
     def delete_sharing(self,
                        ShareType: str,
                        PathOrToken: str, Owner: str,
