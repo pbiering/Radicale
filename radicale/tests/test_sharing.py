@@ -143,6 +143,8 @@ class TestSharingApiSanity(BaseTest):
         answer_dict = json.loads(answer)
         assert answer_dict['FeatureEnabledCollectionByMap'] == True
         assert answer_dict['FeatureEnabledCollectionByToken'] == False
+        assert answer_dict['PermittedCreateCollectionByMap'] == True
+        assert answer_dict['PermittedCreateCollectionByToken'] == True
 
         logging.info("\n*** check API hook: info/map")
         json_dict = {}
@@ -150,6 +152,7 @@ class TestSharingApiSanity(BaseTest):
         answer_dict = json.loads(answer)
         assert answer_dict['FeatureEnabledCollectionByMap'] == True
         assert 'FeatureEnabledCollectionByToken' not in answer_dict
+        assert 'PermittedCreateCollectionByToken' not in answer_dict
 
         logging.info("\n*** check API hook: info/token -> 404 (not enabled)")
         json_dict = {}
@@ -173,6 +176,7 @@ class TestSharingApiSanity(BaseTest):
         answer_dict = json.loads(answer)
         assert answer_dict['FeatureEnabledCollectionByToken'] == True
         assert 'FeatureEnabledCollectionByMap' not in answer_dict
+        assert 'PermittedCreateCollectionByMap' not in answer_dict
 
     def test_sharing_api_list_with_auth(self) -> None:
         """POST/list with authentication."""

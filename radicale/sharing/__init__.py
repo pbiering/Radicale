@@ -48,6 +48,9 @@ DB_FIELDS_V1: Sequence[str] = ('ShareType', 'PathOrToken', 'PathMapped', 'Owner'
 # TimestampUpdated: <unixtime> (last update)
 
 SHARE_TYPES: Sequence[str] = ('token', 'map', 'all')
+# token: share by secret token (does not require authentication)
+# map  : share by mapping collection of one user to another as virtual
+# all  : only supported for "list" and "info"
 
 OUTPUT_TYPES: Sequence[str] = ('csv', 'json', 'txt')
 
@@ -55,11 +58,12 @@ API_HOOKS_V1: Sequence[str] = ('list', 'create', 'delete', 'update', 'hide', 'un
 # list  : list sharings (optional filtered)
 # create : create share by token or map
 # delete : delete share
-# update : update share (TODO implementation)
+# update : update share
 # hide   : hide share (by user or owner)
 # unhide : unhide share (by user or owner)
 # enable : hide share (by user or owner)
 # disable: unhide share (by user or owner)
+# info   : display support status and permissions
 
 API_SHARE_TOGGLES_V1: Sequence[str] = ('hide', 'unhide', 'enable', 'disable')
 
@@ -720,8 +724,10 @@ class BaseSharing:
             answer['Status'] = "success"
             if ShareType in ["all", "map"]:
                 answer['FeatureEnabledCollectionByMap'] = self.sharing_collection_by_map;
+                answer['PermittedCreateCollectionByMap'] = True # TODO toggle per permission, default?
             if ShareType in ["all", "token"]:
                 answer['FeatureEnabledCollectionByToken'] = self.sharing_collection_by_token;
+                answer['PermittedCreateCollectionByToken'] = True # TODO toggle per permission, default?
 
         # action: TOGGLE
         elif action in API_SHARE_TOGGLES_V1:
