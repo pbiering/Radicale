@@ -24,7 +24,7 @@ import re
 import socket
 import xml.etree.ElementTree as ET
 from http import client
-from typing import Dict, Optional, cast
+from typing import Dict, Optional, Union, cast
 
 import defusedxml.ElementTree as DefusedET
 
