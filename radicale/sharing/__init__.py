@@ -159,7 +159,7 @@ class BaseSharing:
     def update_sharing(self,
                        ShareType: str,
                        PathOrToken: str,
-                       Owner: str,
+                       Owner: Union[str | None] = None,
                        User: Union[str | None] = None,
                        PathMapped: Union[str | None] = None,
                        Permissions: Union[str | None] = None,
@@ -425,7 +425,7 @@ class BaseSharing:
 
         # parameters default
         PathOrToken: Union[str | None] = None
-        PathMapped: str
+        PathMapped: Union[str | None] = None
         Owner: str = user
         User: Union[str | None] = None
         Permissions: Union[str | None] = None  # no permissions by default
@@ -746,8 +746,9 @@ class BaseSharing:
                 result = self.toggle_sharing(
                        ShareType=ShareType,
                        PathOrToken=str(PathOrToken),  # verification above that it is not None
-                       OwnerOrUser=user,  # authenticated user
-                       User=User,         # provided user for selection
+                       OwnerOrUser=user,        # authenticated user
+                       User=User,               # optional for selection
+                       PathMapped=PathMapped,  # optional for selection
                        Action=action,
                        Timestamp=Timestamp)
 

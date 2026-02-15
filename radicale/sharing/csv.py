@@ -227,7 +227,7 @@ class Sharing(sharing.BaseSharing):
     def update_sharing(self,
                        ShareType: str,
                        PathOrToken: str,
-                       Owner: str,
+                       Owner: Union[str | None] = None,
                        User: Union[str | None] = None,
                        PathMapped: Union[str | None] = None,
                        Permissions: Union[str | None] = None,
@@ -236,7 +236,7 @@ class Sharing(sharing.BaseSharing):
                        Timestamp: int = 0) -> dict:
         """ update sharing """
         if ShareType == "token":
-            logger.debug("TRACE/sharing/token/update: PathOrToken=%r Owner=%r", PathOrToken, Owner)
+            logger.debug("TRACE/sharing/token/update: PathOrToken=%r Owner=%r User=%r", PathOrToken, Owner, User)
         elif ShareType == "map":
             logger.debug("TRACE/sharing/map/update: PathOrToken=%r Owner=%r PathMapped=%r", PathOrToken, Owner, PathMapped)
         else:
@@ -260,7 +260,9 @@ class Sharing(sharing.BaseSharing):
 
         if found:
             logger.debug("TRACE/sharing/*/update: found index=%d", index)
-            if row['Owner'] != Owner:
+            if Owner is not None and row['Owner'] != Owner:
+                return {"status": "permission-denied"}
+            if User is not None and row['User'] != User:
                 return {"status": "permission-denied"}
             logger.debug("TRACE/sharing/*/update: Owner=%r PathOrToken=%r index=%d", Owner, PathOrToken, index)
 
@@ -376,11 +378,11 @@ class Sharing(sharing.BaseSharing):
                 pass
             elif row['PathOrToken'] != PathOrToken:
                 pass
-            elif PathMapped and row['PathMapped'] != PathMapped:
+            elif PathMapped is not None and row['PathMapped'] != PathMapped:
                 pass
             elif row['Owner'] == OwnerOrUser:
                 # owner has requested filter-by-user
-                if User and row['User'] != User:
+                if User is not None and row['User'] != User:
                     pass
                 else:
                     found = True
@@ -392,7 +394,7 @@ class Sharing(sharing.BaseSharing):
 
         if found:
             # logger.debug("TRACE/sharing/*/" + Action + ": found: %r", row)
-            if User and row['User'] != User:
+            if User is not None and row['User'] != User:
                 return {"status": "permission-denied"}
             elif row['Owner'] == OwnerOrUser:
                 pass
