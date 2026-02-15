@@ -113,9 +113,15 @@ class BaseSharing:
         return None
 
     def list_sharing(self,
-                     ShareType: Union[str, None] = None,
-                     PathOrToken: Union[str | None] = None, PathMapped: Union[str | None] = None,
-                     Owner: Union[str | None] = None, User: Union[str | None] = None) -> list[dict]:
+                     ShareType: Union[str | None] = None,
+                     PathOrToken: Union[str | None] = None,
+                     PathMapped: Union[str | None] = None,
+                     Owner: Union[str | None] = None,
+                     User: Union[str | None] = None,
+                     EnabledByOwner: Union[bool | None] = None,
+                     EnabledByUser: Union[bool | None] = None,
+                     HiddenByOwner: Union[bool | None] = None,
+                     HiddenByUser:  Union[bool | None] = None) -> list[dict]:
         """ retrieve sharing """
         return []
 
@@ -157,7 +163,7 @@ class BaseSharing:
         """ toggle sharing """
         return {}
 
-    # static sharing functions
+    # sharing functions called by request methods
     def sharing_collection_resolver(self, path: str, user: str) -> Union[dict | None]:
         """ returning dict with mapped-flag, PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_token:
@@ -183,6 +189,26 @@ class BaseSharing:
         # final
         return None
 
+    # list active sharings of type "map"
+    def sharing_collection_map_list(self, user: str) -> Union[dict | None]:
+        """ returning dict with shared collections (enabled and unhidden) or None if invalid"""
+        if not self.sharing_collection_by_map:
+            logger.debug("TRACE/sharing_by_map: not active")
+            return None
+
+        # retrieve collections which are enabled and not hidden by owner+user
+        shared_collection_list = self.list_sharing(
+                ShareType="map",
+                User=user,
+                EnabledByOwner=True,
+                EnabledByUser=True,
+                HiddenByOwner=False,
+                HiddenByUser=False)
+
+        # final
+        return shared_collection_list
+
+    # internal sharing functions
     def sharing_collection_by_token_resolver(self, path) -> Union[dict | None]:
         """ returning dict with mapped-flag, PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_token:
@@ -218,7 +244,7 @@ class BaseSharing:
                 return result
             else:
                 # fallback to parent path
-                parent_path = pathutils.unstrip_path(posixpath.dirname(pathutils.strip_path(path)), True)
+                parent_path = pathutils.parent_path(path)
                 logger.debug("TRACE/sharing/resolver/map: check parent path: %r", parent_path)
                 result = self.get_sharing(
                         ShareType="map",
@@ -480,6 +506,9 @@ class BaseSharing:
 
             if 'Enabled' in request_data:
                 EnabledByOwner = config._convert_to_bool(request_data['Enabled'])
+
+            if 'Hidden' in request_data:
+                HiddenByOwner = config._convert_to_bool(request_data['Hidden'])
 
             if ShareType == "token":
                 # check access Permissions
