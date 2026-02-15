@@ -18,7 +18,7 @@ import csv
 import os
 from typing import Union
 
-from radicale import sharing
+from radicale import config, sharing
 from radicale.log import logger
 
 """ CVS based sharing by token or map """
@@ -85,16 +85,18 @@ class Sharing(sharing.BaseSharing):
         # Lookup
         logger.debug("TRACE/sharing: lookup ShareType=%r PathOrToken=%r User=%r)", ShareType, PathOrToken, User)
         for row in self._sharing_cache:
+            logger.debug("TRACE/sharing: check row: %r", row)
             if row['ShareType'] != ShareType:
                 continue
-            elif row['PathOrToken'] != PathOrToken:
+            if row['PathOrToken'] != PathOrToken:
                 continue
-            elif User and row['User'] != User:
+            if User is not None and row['User'] != User:
                 continue
-            elif row['EnabledByOwner'] != True:
+            if row['EnabledByOwner'] != True:
                 continue
-            elif row['EnabledByUser'] != True:
-                continue
+            if row['ShareType'] == "map":
+                if row['EnabledByUser'] != True:
+                    continue
             PathMapped = row['PathMapped']
             Owner = row['Owner']
             UserShare = row['User']
@@ -196,8 +198,8 @@ class Sharing(sharing.BaseSharing):
                "EnabledByUser": EnabledByUser,
                "HiddenByOwner": HiddenByOwner,
                "HiddenByUser": HiddenByUser,
-               "TimestampCreated": str(Timestamp),
-               "TimestampUpdated": str(Timestamp)}
+               "TimestampCreated": Timestamp,
+               "TimestampUpdated": Timestamp}
         logger.debug("TRACE/sharing/*/create: add row: %r", row)
         # TODO: add locking
         self._sharing_cache.append(row)
@@ -385,7 +387,7 @@ class Sharing(sharing.BaseSharing):
                     row['HiddenByOwner'] = True
                 elif Action == "unhide":
                     row['HiddenByOwner'] = False
-                row['TimestampUpdated'] = str(Timestamp)
+                row['TimestampUpdated'] = Timestamp
             if row['User'] == OwnerOrUser:
                 logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": User=%r PathOrToken=%r index=%d", OwnerOrUser, PathOrToken, index)
                 if Action == "disable":
@@ -397,7 +399,7 @@ class Sharing(sharing.BaseSharing):
                 elif Action == "unhide":
                     row['HiddenByUser'] = False
 
-            row['TimestampUpdated'] = str(Timestamp)
+            row['TimestampUpdated'] = Timestamp
 
             # remove
             self._sharing_cache.pop(index)
@@ -434,6 +436,12 @@ class Sharing(sharing.BaseSharing):
                         if fieldname not in row:
                             logger.debug("sharing database is incompatible: %r", fil, filee)
                             return False
+                # convert txt to bool
+                if self._lines > 0:
+                    for fieldname in sharing.DB_FIELDS_V1_BOOL:
+                        row[fieldname] = config._convert_to_bool(row[fieldname])
+                    for fieldname in sharing.DB_FIELDS_V1_INT:
+                        row[fieldname] = int(row[fieldname])
                 # check for duplicates
                 dup = False
                 for row_cached in self._sharing_cache:
