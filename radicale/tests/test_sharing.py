@@ -55,7 +55,7 @@ class TestSharingApiSanity(BaseTest):
         return _, headers, answer
 
     def _sharing_api_form(self, sharing_type: str, action: str, check: int, login: Union[str | None], form_array: Sequence[str], accept_type: Union[str | None] = None) -> Tuple[int, Dict[str, str], str]:
-        data = "\n".join(form_array)
+        data = "&".join(form_array)
         content_type = "application/x-www-form-urlencoded"
         if accept_type is None:
             accept_type = "text/plain"
@@ -106,12 +106,16 @@ class TestSharingApiSanity(BaseTest):
                                     "collection_by_token": "True"},
                         "rights": {"type": "owner_only"}})
 
+        json_dict: dict
+
         # path with no valid API hook
         for path in ["/.sharing/", "/.sharing/v9/"]:
             _, headers, _ = self.request("POST", path, check=404, login="%s:%s" % ("owner", "ownerpw"))
+
         # path with valid API but no hook
         for path in ["/.sharing/v1/"]:
             _, headers, _ = self.request("POST", path, check=404, login="%s:%s" % ("owner", "ownerpw"))
+
         # path with valid API and hook but not enabled "map"
         self.configure({"sharing": {
                                     "collection_by_map": "False",
@@ -121,6 +125,7 @@ class TestSharingApiSanity(BaseTest):
         for action in sharing.API_HOOKS_V1:
             path = "/.sharing/v1/" + sharetype + "/" + action
             _, headers, _ = self.request("POST", path, check=404, login="%s:%s" % ("owner", "ownerpw"))
+
         # path with valid API and hook but not enabled "token"
         self.configure({"sharing": {
                                     "collection_by_map": "True",
@@ -130,6 +135,26 @@ class TestSharingApiSanity(BaseTest):
         for action in sharing.API_HOOKS_V1:
             path = "/.sharing/v1/" + sharetype + "/" + action
             _, headers, _ = self.request("POST", path, check=404, login="%s:%s" % ("owner", "ownerpw"))
+
+        # check info hook
+        logging.info("\n*** check API hook: info/all")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("all", "info", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['FeatureEnabledCollectionByMap'] == True
+        assert answer_dict['FeatureEnabledCollectionByToken'] == False
+
+        logging.info("\n*** check API hook: info/map")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "info", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['FeatureEnabledCollectionByMap'] == True
+        assert 'FeatureEnabledCollectionByToken' not in answer_dict
+
+        logging.info("\n*** check API hook: info/token -> 404 (not enabled)")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("token", "info", 404, "owner:ownerpw", json_dict)
+
         # path with valid API and hook and all enabled
         self.configure({"sharing": {
                                     "collection_by_map": "True",
@@ -142,15 +167,24 @@ class TestSharingApiSanity(BaseTest):
             #  valid API
             _, headers, _ = self.request("POST", path, check=400, login="%s:%s" % ("owner", "ownerpw"))
 
+        logging.info("\n*** check API hook: info/token -> 200")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("token", "info", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['FeatureEnabledCollectionByToken'] == True
+        assert 'FeatureEnabledCollectionByMap' not in answer_dict
+
     def test_sharing_api_list_with_auth(self) -> None:
         """POST/list with authentication."""
         self.configure({"auth": {"type": "htpasswd",
                                  "htpasswd_filename": self.htpasswd_file_path,
                                  "htpasswd_encryption": "plain"},
                         "sharing": {
+                                    "type": "csv",
                                     "collection_by_map": "True",
                                     "collection_by_token": "True"},
-                        "logging": {"request_header_on_debug": "true"},
+                        "logging": {"request_header_on_debug": "true",
+                                    "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
 
         form_array: Sequence[str]
@@ -180,6 +214,46 @@ class TestSharingApiSanity(BaseTest):
             answer_dict = json.loads(answer)
             assert answer_dict['Status'] == "not-found"
             assert answer_dict['Lines'] == 0
+
+        logging.info("\n*** create a token -> 200")
+        form_array = ["PathMapped=/owner/collectionL1/"]
+        _, headers, answer = self._sharing_api_form("token", "create", 200, "owner:ownerpw", form_array)
+        assert "Status=success" in answer
+        assert "PathOrToken=" in answer
+        # extract token
+        match = re.search('PathOrToken=(.+)', answer)
+        if match:
+            token = match.group(1)
+            logging.info("received token %r", token)
+        else:
+            assert False
+
+        logging.info("\n*** create a map -> 200")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = "/owner/collectionL2/"
+        json_dict['PathOrToken'] = "/user/collectionL2-shared-by-owner/"
+        _, headers, answer = self._sharing_api_json("map", "create", 200, "owner:ownerpw", json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** list/all (form->csv)")
+        form_array = []
+        _, headers, answer = self._sharing_api_form("all", "list", 200, "owner:ownerpw", form_array)
+        assert "Status=success" in answer
+        assert "Lines=2" in answer
+
+        logging.info("\n*** delete token -> 200")
+        form_array = ["PathOrToken=" + token]
+        _, headers, answer = self._sharing_api_form("token", "delete", 200, "owner:ownerpw", form_array)
+        assert "Status=success" in answer
+
+        logging.info("\n*** delete share -> 200")
+        form_array = []
+        form_array.append("PathOrToken=/user/collectionL2-shared-by-owner/")
+        form_array.append("PathMapped=/owner/collectionL2/")
+        _, headers, answer = self._sharing_api_form("map", "delete", 200, "owner:ownerpw", form_array)
+        assert "Status=success" in answer
 
     def test_sharing_api_token_basic(self) -> None:
         """share-by-token API tests."""
@@ -518,10 +592,10 @@ class TestSharingApiSanity(BaseTest):
 
         file_item1 = "event1.ics"
         file_item2 = "event2.ics"
-        path_shared = "/user/calendar-shared-by-owner.ics/"
+        path_shared = "/user/calendarU-shared-by-owner.ics/"
         path_shared_item1 = os.path.join(path_shared, file_item1)
         path_shared_item2 = os.path.join(path_shared, file_item2)
-        path_mapped = "/owner/calendar.ics/"
+        path_mapped = "/owner/calendarU.ics/"
         path_mapped_item1 = os.path.join(path_mapped, file_item1)
         path_mapped_item2 = os.path.join(path_mapped, file_item2)
 
