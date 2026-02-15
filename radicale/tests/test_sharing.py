@@ -1505,7 +1505,7 @@ class TestSharingApiSanity(BaseTest):
         assert "ICAL:calendar-color" not in response
 
     def test_sharing_api_map_move(self) -> None:
-        """share-by-map API usage tests related to report."""
+        """share-by-map API usage tests related to MOVE."""
         self.configure({"auth": {"type": "htpasswd",
                                  "htpasswd_filename": self.htpasswd_file_path,
                                  "htpasswd_encryption": "plain"},
@@ -1691,3 +1691,109 @@ class TestSharingApiSanity(BaseTest):
 
         logging.info("\n*** GET event3 as user -> 404")
         _, headers, answer = self.request("GET", os.path.join(path_user, "event3.ics"), check=404, login="user:userpw")
+
+    def test_sharing_api_update(self) -> None:
+        """sharing API usage tests related to update."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "response_content_on_debug": "False",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+        json_dict: dict
+
+        path_mapped1 = "/owner/calendar1U.ics/"
+        path_mapped2 = "/owner/calendar2U.ics/"
+        path_shared1 = "/user/calendar1U-shared-by-owner.ics/"
+
+        logging.info("\n*** prepare and test access")
+        self.mkcalendar(path_mapped1, login="owner:ownerpw")
+        event = get_file_content("event1.ics")
+        self.put(os.path.join(path_mapped1, "event1.ics"), event, login="owner:ownerpw")
+
+        # check GET as owner
+        logging.info("\n*** GET mapped1 as owner (init) -> 200")
+        _, headers, answer = self.request("GET", path_mapped1, check=200, login="owner:ownerpw")
+
+        logging.info("\n*** GET shared1 as user (init) -> 404")
+        _, headers, answer = self.request("GET", path_shared1, check=404, login="user:userpw")
+
+        logging.info("\n*** create map user/owner:w -> ok")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_shared1
+        json_dict['Permissions'] = "w"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", check=200, login="owner:ownerpw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** GET shared1 as user (still not enabled by user) -> 404")
+        _, headers, answer = self.request("GET", path_shared1, check=404, login="user:userpw")
+
+        # enable map by user
+        logging.info("\n*** enable map shared1 by user")
+        json_dict = {}
+        json_dict['User'] = "user"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_shared1
+        _, headers, answer = self._sharing_api_json("map", "enable", check=200, login="user:userpw", json_dict=json_dict)
+
+        logging.info("\n*** list/all (form->csv)")
+        form_array = []
+        _, headers, answer = self._sharing_api_form("map", "list", check=200, login="owner:ownerpw", form_array=form_array)
+        assert "Status=success" in answer
+        assert "Lines=1" in answer
+
+        # read collection
+        logging.info("\n*** GET shared1 as user (no read permissions set by owner) -> 403")
+        _, headers, answer = self.request("GET", path_shared1, check=403, login="user:userpw")
+
+        # update map
+        logging.info("\n*** update map user/owner:r -> ok")
+        json_dict = {}
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_shared1
+        json_dict['Permissions'] = "r"
+        _, headers, answer = self._sharing_api_json("map", "update", check=200, login="owner:ownerpw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** list/all (form->csv)")
+        form_array = []
+        _, headers, answer = self._sharing_api_form("map", "list", check=200, login="owner:ownerpw", form_array=form_array)
+        assert "Status=success" in answer
+        assert "Lines=1" in answer
+
+        # read collection
+        logging.info("\n*** GET shared1 as user (read permissions set by owner) -> 200")
+        _, headers, answer = self.request("GET", path_shared1, check=200, login="user:userpw")
+
+        # update map
+        logging.info("\n*** update map user/owner:path_mapped2 -> ok")
+        json_dict = {}
+        json_dict['PathMapped'] = path_mapped2
+        json_dict['PathOrToken'] = path_shared1
+        _, headers, answer = self._sharing_api_json("map", "update", check=200, login="owner:ownerpw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        # read collection
+        logging.info("\n*** GET shared1 as user (path not matching) -> 404")
+        _, headers, answer = self.request("GET", path_shared1, check=404, login="user:userpw")
+
+        logging.info("\n*** create mapped2 collection")
+        self.mkcalendar(path_mapped2, login="owner:ownerpw")
+        event = get_file_content("event2.ics")
+        self.put(os.path.join(path_mapped2, "event2.ics"), event, login="owner:ownerpw")
+
+        # read collection
+        logging.info("\n*** GET shared1 as user (path now matching) -> 200")
+        _, headers, answer = self.request("GET", path_shared1, check=200, login="user:userpw")
