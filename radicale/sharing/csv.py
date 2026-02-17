@@ -129,10 +129,10 @@ class Sharing(sharing.BaseSharing):
         return None
 
     def list_sharing(self,
+                     OwnerOrUser: str,
                      ShareType: Union[str | None] = None,
                      PathOrToken: Union[str | None] = None,
                      PathMapped: Union[str | None] = None,
-                     Owner: Union[str | None] = None,
                      User: Union[str | None] = None,
                      EnabledByOwner: Union[bool | None] = None,
                      EnabledByUser: Union[bool | None] = None,
@@ -140,32 +140,43 @@ class Sharing(sharing.BaseSharing):
                      HiddenByUser: Union[bool | None] = None) -> list[dict]:
         """ retrieve sharing """
         row: dict
+        index = 0
         result = []
 
-        logger.debug("TRACE/sharing/list/called: HiddenByOwner=%s HiddenByUser=%s", HiddenByOwner, HiddenByUser)
+        logger.debug("TRACE/sharing/list/called: ShareType=%r OwnerOrUser=%r User=%r PathOrToken=%r PathMapped=%r HiddenByOwner=%s HiddenByUser=%s", ShareType, OwnerOrUser, User, PathOrToken, PathMapped, HiddenByOwner, HiddenByUser)
 
         for row in self._sharing_cache:
-            logger.debug("TRACE/sharing/list/row: test: %r", row)
-            if ShareType is not None and row['ShareType'] != ShareType:
-                continue
-            elif Owner is not None and row['Owner'] != Owner:
-                continue
-            elif User is not None and row['User'] != User:
-                continue
-            elif PathOrToken is not None and row['PathOrToken'] != PathOrToken:
-                continue
-            elif PathMapped is not None and row['PathMapped'] != PathMapped:
-                continue
-            elif EnabledByOwner is not None and row['EnabledByOwner'] != EnabledByOwner:
-                continue
-            elif EnabledByUser is not None and row['EnabledByUser'] != EnabledByUser:
-                continue
-            elif HiddenByOwner is not None and row['HiddenByOwner'] != HiddenByOwner:
-                continue
-            elif HiddenByUser is not None and row['HiddenByUser'] != HiddenByUser:
-                continue
-            logger.debug("TRACE/sharing/list/row: add: %r", row)
-            result.append(row)
+            if index == 0:
+                # skip fieldnames
+                pass
+            else:
+                logger.debug("TRACE/sharing/list/row: test: %r", row)
+                if ShareType is not None and row['ShareType'] != ShareType:
+                    logger.debug("TRACE/sharing/list/row: skip by ShareType")
+                    pass
+                elif OwnerOrUser is not None and (row['Owner'] != OwnerOrUser and row['User'] != OwnerOrUser):
+                    pass
+                elif User is not None and row['User'] != User:
+                    logger.debug("TRACE/sharing/list/row: skip by User")
+                    pass
+                elif PathOrToken is not None and row['PathOrToken'] != PathOrToken:
+                    logger.debug("TRACE/sharing/list/row: skip by PathOrToken")
+                    pass
+                elif PathMapped is not None and row['PathMapped'] != PathMapped:
+                    logger.debug("TRACE/sharing/list/row: skip by PathMapped")
+                    pass
+                elif EnabledByOwner is not None and row['EnabledByOwner'] != EnabledByOwner:
+                    pass
+                elif EnabledByUser is not None and row['EnabledByUser'] != EnabledByUser:
+                    pass
+                elif HiddenByOwner is not None and row['HiddenByOwner'] != HiddenByOwner:
+                    pass
+                elif HiddenByUser is not None and row['HiddenByUser'] != HiddenByUser:
+                    pass
+                else:
+                    logger.debug("TRACE/sharing/list/row: add: %r", row)
+                    result.append(row)
+            index += 1
         return result
 
     def create_sharing(self,

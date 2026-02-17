@@ -126,10 +126,10 @@ class BaseSharing:
         return None
 
     def list_sharing(self,
+                     OwnerOrUser: str,
                      ShareType: Union[str | None] = None,
                      PathOrToken: Union[str | None] = None,
                      PathMapped: Union[str | None] = None,
-                     Owner: Union[str | None] = None,
                      User: Union[str | None] = None,
                      EnabledByOwner: Union[bool | None] = None,
                      EnabledByUser: Union[bool | None] = None,
@@ -224,6 +224,7 @@ class BaseSharing:
         # retrieve collections which are enabled and not hidden by owner+user
         shared_collection_list = self.list_sharing(
                 ShareType="map",
+                OwnerOrUser=user,
                 User=user,
                 EnabledByOwner=True,
                 EnabledByUser=True,
@@ -531,11 +532,13 @@ class BaseSharing:
             if ShareType != "all":
                 result_array = self.list_sharing(
                         ShareType=ShareType,
-                        Owner=Owner,
+                        OwnerOrUser=Owner,
+                        PathMapped=PathMapped,
                         PathOrToken=PathOrToken)
             else:
                 result_array = self.list_sharing(
-                        Owner=Owner,
+                        OwnerOrUser=Owner,
+                        PathMapped=PathMapped,
                         PathOrToken=PathOrToken)
 
             answer['Lines'] = len(result_array)
