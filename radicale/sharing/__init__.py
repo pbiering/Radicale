@@ -190,22 +190,21 @@ class BaseSharing:
 
     # sharing functions called by request methods
     def sharing_collection_resolver(self, path: str, user: str) -> Union[dict | None]:
-        """ returning dict with mapped-flag, PathMapped, Owner, Permissions or None if invalid"""
+        """ returning dict with PathMapped, Owner, Permissions or None if not found"""
         if self.sharing_collection_by_token:
             result = self.sharing_collection_by_token_resolver(path)
-            if result is None:
+            if result is not None:
                 return result
-            elif result["mapped"]:
-                return result
+            else:
+                # check for map
+                pass
         else:
             logger.debug("TRACE/sharing_by_token: not active")
             return None
 
         if self.sharing_collection_by_map:
             result = self.sharing_collection_by_map_resolver(path, user)
-            if result is None:
-                return result
-            elif result["mapped"]:
+            if result is not None:
                 return result
         else:
             logger.debug("TRACE/sharing_by_map: not active")
@@ -216,7 +215,7 @@ class BaseSharing:
 
     # list active sharings of type "map"
     def sharing_collection_map_list(self, user: str) -> Union[dict | None]:
-        """ returning dict with shared collections (enabled and unhidden) or None if invalid"""
+        """ returning dict with shared collections (enabled and unhidden) or None if not found"""
         if not self.sharing_collection_by_map:
             logger.debug("TRACE/sharing_by_map: not active")
             return None
@@ -236,7 +235,7 @@ class BaseSharing:
 
     # internal sharing functions
     def sharing_collection_by_token_resolver(self, path) -> Union[dict | None]:
-        """ returning dict with mapped-flag, PathMapped, Owner, Permissions or None if invalid"""
+        """ returning dict with PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_token:
             logger.debug("TRACE/sharing_by_token: check path: %r", path)
             if path.startswith("/.token/"):
@@ -253,13 +252,13 @@ class BaseSharing:
                             PathOrToken=match[1])
             else:
                 logger.debug("TRACE/sharing_by_token: no supported prefix found in path: %r", path)
-                return {"mapped": False}
+                return None
         else:
             logger.debug("TRACE/sharing_by_token: not active")
-            return {"mapped": False}
+            return None
 
     def sharing_collection_by_map_resolver(self, path: str, user: str) -> Union[dict | None]:
-        """ returning dict with mapped-flag, PathMapped, Owner, Permissions or None if invalid"""
+        """ returning dict with PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_map:
             logger.debug("TRACE/sharing/resolver/map: check path: %r", path)
             result = self.get_sharing(
@@ -282,10 +281,10 @@ class BaseSharing:
                     return result
                 else:
                     logger.debug("TRACE/sharing_by_map: not found")
-                    return {"mapped": False}
+                    return None
         else:
             logger.debug("TRACE/sharing_by_map: not active")
-            return {"mapped": False}
+            return None
 
     # POST API
     def post(self, environ: types.WSGIEnviron, base_prefix: str, path: str, user: str) -> types.WSGIResponse:
