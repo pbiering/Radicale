@@ -832,6 +832,20 @@ class TestSharingApiSanity(BaseTest):
         json_dict['PathOrToken'] = path_share1
         _, headers, answer = self._sharing_api_json("map", "create", check=403, login="owner2:owner2pw", json_dict=json_dict)
 
+        logging.info("\n*** delete map user1 -> ok")
+        json_dict = {}
+        json_dict['User'] = "user1"
+        json_dict['PathMapped'] = path_mapped1
+        json_dict['PathOrToken'] = path_share1
+        _, headers, answer = self._sharing_api_json("map", "delete", check=200, login="owner1:owner1pw", json_dict=json_dict)
+
+        logging.info("\n*** delete map user2 -> ok")
+        json_dict = {}
+        json_dict['User'] = "user2"
+        json_dict['PathMapped'] = path_mapped2
+        json_dict['PathOrToken'] = path_share2
+        _, headers, answer = self._sharing_api_json("map", "delete", check=200, login="owner2:owner2pw", json_dict=json_dict)
+
     def test_sharing_api_map_permissions(self) -> None:
         """share-by-map API usage tests related to permissions."""
         self.configure({"auth": {"type": "htpasswd",
@@ -1801,3 +1815,141 @@ class TestSharingApiSanity(BaseTest):
         # read collection
         logging.info("\n*** GET shared1 as user (path now matching) -> 200")
         _, headers, answer = self.request("GET", path_shared1, check=200, login="user:userpw")
+
+    def test_sharing_api_list_filter(self) -> None:
+        """sharing API usage tests related to update."""
+        self.configure({"auth": {"type": "htpasswd",
+                                 "htpasswd_filename": self.htpasswd_file_path,
+                                 "htpasswd_encryption": "plain"},
+                        "sharing": {
+                                    "type": "csv",
+                                    "collection_by_map": "True",
+                                    "collection_by_token": "True"},
+                        "logging": {"request_header_on_debug": "False",
+                                    "response_content_on_debug": "False",
+                                    "request_content_on_debug": "True"},
+                        "rights": {"type": "owner_only"}})
+        json_dict: dict
+
+        path_user1 = "/user1/calendarLFu1.ics/"
+        path_user2 = "/user2/calendarLFu2.ics/"
+        path_user1_shared1 = "/user1/calendarLFo1-shared.ics/"
+        path_user1_shared2 = "/user1/calendarLFo2-shared.ics/"
+        path_user2_shared1 = "/user2/calendarLFo1-shared.ics/"
+        path_user2_shared2 = "/user2/calendarLFo2-shared.ics/"
+        path_owner1 = "/owner1/calendarLFo1.ics/"
+        path_owner2 = "/owner2/calendarLFo2.ics/"
+
+        logging.info("\n*** prepare")
+        self.mkcalendar(path_owner1, login="owner1:owner1pw")
+        self.mkcalendar(path_owner2, login="owner2:owner2pw")
+        self.mkcalendar(path_user1, login="user1:user1pw")
+        self.mkcalendar(path_user2, login="user2:user2pw")
+
+        # list current
+        logging.info("\n*** list owner1 -> empty")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="owner1:owner1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "not-found"
+
+        logging.info("\n*** list owner2 -> empty")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="owner2:owner2pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "not-found"
+
+        logging.info("\n*** list user1 -> empty")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="user1:user1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "not-found"
+
+        logging.info("\n*** list user2 -> empty")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="user2:user2pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "not-found"
+
+        # create map#1
+        logging.info("\n*** create map user1/owner1 -> ok")
+        json_dict = {}
+        json_dict['User'] = "user1"
+        json_dict['PathMapped'] = path_owner1
+        json_dict['PathOrToken'] = path_user1_shared1
+        json_dict['Permissions'] = "r"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", check=200, login="owner1:owner1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** list owner1")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="owner1:owner1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+        assert answer_dict['Lines'] == 1
+
+        logging.info("\n*** list user1")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="user1:user1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+        assert answer_dict['Lines'] == 1
+
+        # create map#2
+        logging.info("\n*** create map user1/owner2 -> ok")
+        json_dict = {}
+        json_dict['User'] = "user1"
+        json_dict['PathMapped'] = path_owner2
+        json_dict['PathOrToken'] = path_user1_shared2
+        json_dict['Permissions'] = "r"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", check=200, login="owner2:owner2pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** list user1 -> 2 entries")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="user1:user1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+        assert answer_dict['Lines'] == 2
+
+        # create map#3
+        logging.info("\n*** create map user2/owner1 -> ok")
+        json_dict = {}
+        json_dict['User'] = "user2"
+        json_dict['PathMapped'] = path_owner1
+        json_dict['PathOrToken'] = path_user2_shared1
+        json_dict['Permissions'] = "r"
+        json_dict['Enabled'] = "True"
+        json_dict['Hidden'] = "False"
+        _, headers, answer = self._sharing_api_json("map", "create", check=200, login="owner1:owner1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+
+        logging.info("\n*** list owner1 -> 2 entries")
+        json_dict = {}
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="owner1:owner1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+        assert answer_dict['Lines'] == 2
+
+        logging.info("\n*** list user1 filter for PathMapped -> 1 entries")
+        json_dict = {}
+        json_dict['PathMapped'] = path_owner1
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="user1:user1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+        assert answer_dict['Lines'] == 1
+
+        logging.info("\n*** list user1 filter for PathShared -> 1 entries")
+        json_dict = {}
+        json_dict['PathOrToken'] = path_user1_shared1
+        _, headers, answer = self._sharing_api_json("map", "list", check=200, login="user1:user1pw", json_dict=json_dict)
+        answer_dict = json.loads(answer)
+        assert answer_dict['Status'] == "success"
+        assert answer_dict['Lines'] == 1
