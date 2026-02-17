@@ -3,7 +3,7 @@
 # Copyright © 2008 Pascal Halter
 # Copyright © 2008-2017 Guillaume Ayoub
 # Copyright © 2017-2021 Unrud <unrud@outlook.com>
-# Copyright © 2024-2025 Peter Bieringer <pb@bieringer.de>
+# Copyright © 2024-2026 Peter Bieringer <pb@bieringer.de>
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,6 +55,12 @@ class ApplicationPartMkcalendar(ApplicationBase):
             logger.warning(
                 "Bad MKCALENDAR request on %r: %s", path, e, exc_info=True)
             return httputils.BAD_REQUEST
+        # check for shared collections (active or inactive)
+        collections_shared_map = self._sharing.sharing_collection_map_list(user, active=False)
+        if collections_shared_map:
+            for sharing in collections_shared_map:
+                if sharing['PathOrToken'] == path:
+                    return httputils.CONFLICT
         # TODO: use this?
         # timezone = props.get("C:calendar-timezone")
         with self._storage.acquire_lock("w", user, path=path, request="MKCALENDAR"):
