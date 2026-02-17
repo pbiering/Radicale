@@ -27,7 +27,7 @@ from http import client
 from typing import Sequence, Union
 from urllib.parse import parse_qs
 
-from radicale import config, httputils, pathutils, rights, types, utils
+from radicale import config, httputils, pathutils, rights, storage, types, utils
 from radicale.log import logger
 
 INTERNAL_TYPES: Sequence[str] = ("csv", "sqlite", "none")
@@ -95,6 +95,7 @@ class BaseSharing:
         """
         self.configuration = configuration
         self._rights = rights.load(configuration)
+        self._storage = storage.load(configuration)
         # Sharing
         self.sharing_collection_by_map = configuration.get("sharing", "collection_by_map")
         self.sharing_collection_by_token = configuration.get("sharing", "collection_by_token")
@@ -213,22 +214,29 @@ class BaseSharing:
         # final
         return None
 
-    # list active sharings of type "map"
-    def sharing_collection_map_list(self, user: str) -> Union[dict | None]:
-        """ returning dict with shared collections (enabled and unhidden) or None if not found"""
+    # list sharings of type "map"
+    def sharing_collection_map_list(self, user: str, active: bool = True) -> Union[dict | None]:
+        """ returning dict with shared collections (active==True: enabled and unhidden) or None if not found"""
         if not self.sharing_collection_by_map:
             logger.debug("TRACE/sharing_by_map: not active")
             return None
 
         # retrieve collections which are enabled and not hidden by owner+user
-        shared_collection_list = self.list_sharing(
-                ShareType="map",
-                OwnerOrUser=user,
-                User=user,
-                EnabledByOwner=True,
-                EnabledByUser=True,
-                HiddenByOwner=False,
-                HiddenByUser=False)
+        if active:
+            shared_collection_list = self.list_sharing(
+                    ShareType="map",
+                    OwnerOrUser=user,
+                    User=user,
+                    EnabledByOwner=True,
+                    EnabledByUser=True,
+                    HiddenByOwner=False,
+                    HiddenByUser=False)
+        else:
+            # unconditional
+            shared_collection_list = self.list_sharing(
+                    ShareType="map",
+                    OwnerOrUser=user,
+                    User=user)
 
         # final
         return shared_collection_list
@@ -605,10 +613,19 @@ class BaseSharing:
                     logger.info("Add sharing-by-map: access to path(mapped) %r not allowed for owner %r", PathMapped, Owner)
                     return httputils.NOT_ALLOWED
 
-                access = Access(self._rights, str(User), str(PathOrToken))
+                access = Access(self._rights, str(User), PathOrToken)
                 if not access.check("r") and "i" not in access.permissions:
                     logger.info("Add sharing-by-map: access to path %r not allowed for user %r", PathOrToken, user)
                     return httputils.NOT_ALLOWED
+
+                # check whether share is already existing as real collection
+                with self._storage.acquire_lock("r", user, path=PathOrToken):
+                    item = next(iter(self._storage.discover(PathOrToken)), None)
+                    if not item:
+                        pass
+                    else:
+                        logger.info("Add sharing-by-map: path %r already exists as real collection for user %r", PathOrToken, user)
+                        return httputils.CONFLICT
 
                 logger.debug("TRACE/" + api_info + ": %r (Permissions=%r PathOrToken=%r user=%r)", PathMapped, Permissions, PathOrToken, User)
                 result = self.create_sharing(
