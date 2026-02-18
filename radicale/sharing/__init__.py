@@ -30,7 +30,7 @@ from urllib.parse import parse_qs
 from radicale import config, httputils, pathutils, rights, storage, types, utils
 from radicale.log import logger
 
-INTERNAL_TYPES: Sequence[str] = ("csv", "sqlite", "none")
+INTERNAL_TYPES: Sequence[str] = ("csv", "files", "none")
 
 DB_FIELDS_V1: Sequence[str] = ('ShareType', 'PathOrToken', 'PathMapped', 'Owner', 'User', 'Permissions', 'EnabledByOwner', 'EnabledByUser', 'HiddenByOwner', 'HiddenByUser', 'TimestampCreated', 'TimestampUpdated')
 DB_FIELDS_V1_BOOL: Sequence[str] = ('EnabledByOwner', 'EnabledByUser', 'HiddenByOwner', 'HiddenByUser')

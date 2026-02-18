@@ -2062,11 +2062,11 @@ Sharing database type
 One of:
  * `none`
  * `csv`
- * `sqlite`
+ * `files`
 
-Default: `none`
+Default: `none` (implicit disabling the feature)
 
-##### database_filename
+##### database_path
 
 _(>= 3.7.0)_
 
@@ -2074,7 +2074,7 @@ Sharing database path
 
 Default:
  * type `csv`: `(filesystem_folder)/collection-db/sharing.csv`
- * type `sqlite`: `(filesystem_folder)/collection-db/sharing.sqlite`
+ * type `files`: `(filesystem_folder)/collection-db/files`
 
 ##### collection_by_token
 

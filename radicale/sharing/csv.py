@@ -32,7 +32,7 @@ class Sharing(sharing.BaseSharing):
     # Overloaded functions
     def init_database(self) -> bool:
         logger.debug("sharing database initialization for type 'csv'")
-        sharing_db_file = self.configuration.get("sharing", "database_filename")
+        sharing_db_file = self.configuration.get("sharing", "database_path")
         if sharing_db_file == "":
             folder = self.configuration.get("storage", "filesystem_folder")
             folder_db = os.path.join(folder, "collection-db")

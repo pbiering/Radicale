@@ -460,9 +460,9 @@ DEFAULT_CONFIG_SCHEMA: types.CONFIG_SCHEMA = OrderedDict([
             "help": "sharing database type",
             "type": str_or_callable,
             "internal": sharing.INTERNAL_TYPES}),
-        ("database_filename", {
+        ("database_path", {
             "value": "",
-            "help": "database filename",
+            "help": "database path",
             "type": filepath}),
         ("collection_by_map", {
             "value": "false",
