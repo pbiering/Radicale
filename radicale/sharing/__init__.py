@@ -49,6 +49,7 @@ DB_FIELDS_V1_INT: Sequence[str] = ('TimestampCreated', 'TimestampUpdated')
 # TimestampUpdated: <unixtime> (last update)
 
 SHARE_TYPES: Sequence[str] = ('token', 'map', 'all')
+SHARE_TYPES_V1: Sequence[str] = ('token', 'map')
 # token: share by secret token (does not require authentication)
 # map  : share by mapping collection of one user to another as virtual
 # all  : only supported for "list" and "info"
@@ -126,8 +127,12 @@ class BaseSharing:
         """ retrieve database information """
         return None
 
+    def verify_database(self) -> bool:
+        """ verify database information """
+        return False
+
     def list_sharing(self,
-                     OwnerOrUser: str,
+                     OwnerOrUser: Union[str | None] = None,
                      ShareType: Union[str | None] = None,
                      PathOrToken: Union[str | None] = None,
                      PathMapped: Union[str | None] = None,
@@ -190,6 +195,38 @@ class BaseSharing:
         return {"status": "not-implemented"}
 
     # sharing functions called by request methods
+    def verify(self) -> bool:
+        """ verify database """
+        logger.info("sharing database verification begin")
+        logger.info("sharing database verification call: %s", self.sharing_db_type)
+        result = self.verify_database()
+        if result is not True:
+            logger.error("sharing database verification call -> PROBLEM: %s", self.sharing_db_type)
+            return False
+        else:
+            pass
+        logger.info("sharing database verification call -> OK: %s", self.sharing_db_type)
+        # check all entries
+        logger.info("sharing database verification content start")
+        with self._storage.acquire_lock("r"):
+            for entry in self.list_sharing():
+                logger.debug("analyze: %r", entry)
+                if entry['ShareType'] not in SHARE_TYPES_V1:
+                    logger.error("ShareType not supported: %r", entry['ShareType'])
+                    return False
+                elif not entry['PathMapped'].endswith("/"):
+                    logger.error("PathMapped not ending with '/': %r", entry['PathMapped'])
+                    return False
+                elif entry['ShareType'] == "map":
+                    if not entry['PathOrToken'].endswith("/"):
+                        logger.error("PathOrToken not ending with '/': %r", entry['PathOrToken'])
+                        return False
+                else:
+                    pass
+                # TODO: check PathMapped exists
+        logger.info("sharing database verification content successful")
+        return True
+
     def sharing_collection_resolver(self, path: str, user: str) -> Union[dict | None]:
         """ returning dict with PathMapped, Owner, Permissions or None if not found"""
         if self.sharing_collection_by_token:
@@ -456,10 +493,14 @@ class BaseSharing:
                     if not re.search('^' + PATH_PATTERN + '$', request_data[key]):
                         logger.error(api_info + ": unsupported " + key)
                         return httputils.bad_request("Invalid value for PathOrToken")
+                elif not request_data[key].endswith("/"):
+                    return httputils.bad_request("PathOrToken not ending with /")
             elif key == "PathMapped":
                 if not re.search('^' + PATH_PATTERN + '$', request_data[key]):
                     logger.error(api_info + ": unsupported " + key)
                     return httputils.bad_request("Invalid value for PathMapped")
+                elif not request_data[key].endswith("/"):
+                    return httputils.bad_request("PathMapped not ending with /")
             elif key == "Enabled" or key == "Hidden":
                 if not re.search('^(False|True)$', request_data[key]):
                     logger.error(api_info + ": unsupported " + key)

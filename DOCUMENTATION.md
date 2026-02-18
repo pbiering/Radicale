@@ -726,6 +726,12 @@ _(>= 3.6.0)_
 
 Verification of a particular item file
 
+##### --verify-sharing
+
+_(>= 3.7.0)_
+
+Verification of local sharing database
+
 ##### -C|--config <file>
 
 Load one or more specified config file(s)

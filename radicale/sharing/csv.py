@@ -37,12 +37,12 @@ class Sharing(sharing.BaseSharing):
             folder = self.configuration.get("storage", "filesystem_folder")
             folder_db = os.path.join(folder, "collection-db")
             sharing_db_file = os.path.join(folder_db, "sharing.csv")
-            logger.warning("sharing database filename not provided, use default: %r", sharing_db_file)
+            logger.info("sharing database filename not provided, use default: %r", sharing_db_file)
         else:
             logger.info("sharing database filename: %r", sharing_db_file)
 
         if not os.path.exists(folder_db):
-            logger.warning("sharing database folder is not existing: %r", folder_db)
+            logger.warning("sharing database folder is not existing: %r (create now)", folder_db)
             try:
                 os.mkdir(folder_db)
             except Exception as e:
@@ -76,6 +76,14 @@ class Sharing(sharing.BaseSharing):
     def get_database_info(self) -> Union[dict | None]:
         database_info = {'type': "csv"}
         return database_info
+
+    def verify_database(self) -> bool:
+        logger.info("sharing database (csv) verification begin")
+        logger.info("sharing database (csv) file: %r", self._sharing_db_file)
+        logger.info("sharing database (csv) loaded entries: %d", self._lines)
+        # nothing more todo for CSV
+        logger.info("sharing database (csv) verification end")
+        return True
 
     def get_sharing(self,
                     ShareType: str,
@@ -129,7 +137,7 @@ class Sharing(sharing.BaseSharing):
         return None
 
     def list_sharing(self,
-                     OwnerOrUser: str,
+                     OwnerOrUser: Union[str | None] = None,
                      ShareType: Union[str | None] = None,
                      PathOrToken: Union[str | None] = None,
                      PathMapped: Union[str | None] = None,
