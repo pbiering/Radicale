@@ -235,12 +235,13 @@ class Sharing(sharing.BaseSharing):
                "TimestampCreated": Timestamp,
                "TimestampUpdated": Timestamp}
         logger.debug("TRACE/sharing/*/create: add row: %r", row)
-        # TODO: add locking
         self._sharing_cache.append(row)
-        if self._write_csv(self._sharing_db_file):
-            logger.debug("TRACE/sharing_by_token: write CSV done")
-            return {"status": "success"}
-        logger.error("sharing/add_sharing_by_token: cannot update CSV database")
+
+        with self._storage.acquire_lock("w", Owner, path=self._sharing_db_file):
+            if self._write_csv(self._sharing_db_file):
+                logger.debug("TRACE/sharing/%s/create: write CSV done", ShareType)
+                return {"status": "success"}
+        logger.error("sharing/%s/create: cannot update CSV database", ShareType)
         return {"status": "error"}
 
     def update_sharing(self,
@@ -254,12 +255,7 @@ class Sharing(sharing.BaseSharing):
                        HiddenByOwner:  Union[bool | None] = None,
                        Timestamp: int = 0) -> dict:
         """ update sharing """
-        if ShareType == "token":
-            logger.debug("TRACE/sharing/token/update: PathOrToken=%r Owner=%r User=%r", PathOrToken, Owner, User)
-        elif ShareType == "map":
-            logger.debug("TRACE/sharing/map/update: PathOrToken=%r Owner=%r PathMapped=%r", PathOrToken, Owner, PathMapped)
-        else:
-            raise  # should not be reached
+        logger.debug("TRACE/sharing/%s/update: PathOrToken=%r Owner=%r PathMapped=%r", ShareType, PathOrToken, Owner, PathMapped)
 
         # lookup token
         found = False
@@ -278,14 +274,14 @@ class Sharing(sharing.BaseSharing):
             index += 1
 
         if found:
-            logger.debug("TRACE/sharing/*/update: found index=%d", index)
+            logger.debug("TRACE/sharing/%s/update: found index=%d", ShareType, index)
             if Owner is not None and row['Owner'] != Owner:
                 return {"status": "permission-denied"}
             if User is not None and row['User'] != User:
                 return {"status": "permission-denied"}
-            logger.debug("TRACE/sharing/*/update: Owner=%r PathOrToken=%r index=%d", Owner, PathOrToken, index)
+            logger.debug("TRACE/sharing/%s/update: Owner=%r PathOrToken=%r index=%d", ShareType, Owner, PathOrToken, index)
 
-            logger.debug("TRACE/sharing/*/update: orig row=%r", row)
+            logger.debug("TRACE/sharing/%s/update: orig row=%r", ShareType, row)
 
             # CSV: remove+adjust+readd
             if PathMapped is not None:
@@ -301,16 +297,17 @@ class Sharing(sharing.BaseSharing):
             # update timestamp
             row["TimestampUpdated"] = Timestamp
 
-            logger.debug("TRACE/sharing/*/update: adj  row=%r", row)
+            logger.debug("TRACE/sharing/%s/update: adj  row=%r", ShareType, row)
 
-            # TODO: add locking
             # replace row
             self._sharing_cache.pop(index)
             self._sharing_cache.append(row)
-            if self._write_csv(self._sharing_db_file):
-                logger.debug("TRACE/sharing_by_token: write CSV done")
-                return {"status": "success"}
-            logger.warning("sharing/sharing_by_token: cannot update CSV database")
+
+            with self._storage.acquire_lock("w", Owner, path=self._sharing_db_file):
+                if self._write_csv(self._sharing_db_file):
+                    logger.debug("TRACE/sharing/%s/update: write CSV done", ShareType)
+                    return {"status": "success"}
+            logger.error("sharing/%s/update: cannot update CSV database", ShareType)
             return {"status": "error"}
         else:
             return {"status": "not-found"}
@@ -320,18 +317,13 @@ class Sharing(sharing.BaseSharing):
                        PathOrToken: str, Owner: str,
                        PathMapped: Union[str | None] = None) -> dict:
         """ delete sharing """
-        if ShareType == "token":
-            logger.debug("TRACE/sharing/token/delete: PathOrToken=%r Owner=%r", PathOrToken, Owner)
-        elif ShareType == "map":
-            logger.debug("TRACE/sharing/map/delete: PathOrToken=%r Owner=%r PathMapped=%r", PathOrToken, Owner, PathMapped)
-        else:
-            raise  # should not be reached
+        logger.debug("TRACE/sharing/%s/delete: PathOrToken=%r Owner=%r PathMapped=%r", ShareType, PathOrToken, Owner, PathMapped)
 
         # lookup token
         found = False
         index = 0
         for row in self._sharing_cache:
-            logger.debug("TRACE/sharing/map/delete: check: %r", row)
+            logger.debug("TRACE/sharing/%s/delete: check: %r", ShareType, row)
             if index == 0:
                 # skip fieldnames
                 pass
@@ -353,17 +345,17 @@ class Sharing(sharing.BaseSharing):
             index += 1
 
         if found:
-            logger.debug("TRACE/sharing/*/delete: found index=%d", index)
+            logger.debug("TRACE/sharing/%s/delete: found index=%d", ShareType, index)
             if row['Owner'] != Owner:
                 return {"status": "permission-denied"}
-            logger.debug("TRACE/sharing/*/delete: Owner=%r PathOrToken=%r index=%d", Owner, PathOrToken, index)
+            logger.debug("TRACE/sharing/%s/delete: Owner=%r PathOrToken=%r index=%d", ShareType, Owner, PathOrToken, index)
             self._sharing_cache.pop(index)
 
-            # TODO: add locking
-            if self._write_csv(self._sharing_db_file):
-                logger.debug("TRACE/sharing_by_token: write CSV done")
-                return {"status": "success"}
-            logger.warning("sharing/sharing_by_token: cannot update CSV database")
+            with self._storage.acquire_lock("w", Owner, path=self._sharing_db_file):
+                if self._write_csv(self._sharing_db_file):
+                    logger.debug("TRACE/sharing_by_token: write CSV done")
+                    return {"status": "success"}
+            logger.error("sharing/%s/delete: cannot update CSV database", ShareType)
             return {"status": "error"}
         else:
             return {"status": "not-found"}
@@ -383,7 +375,7 @@ class Sharing(sharing.BaseSharing):
             # should not happen
             raise
 
-        logger.debug("TRACE/sharing/*/" + Action + ": ShareType=%r OwnerOrUser=%r User=%r PathOrToken=%r PathMapped=%r Action=%r", ShareType, OwnerOrUser, User, PathOrToken, PathMapped, Action)
+        logger.debug("TRACE/sharing/%s/%s: OwnerOrUser=%r User=%r PathOrToken=%r PathMapped=%r", ShareType, Action, OwnerOrUser, User, PathOrToken, PathMapped)
 
         # lookup entry
         found = False
@@ -400,12 +392,8 @@ class Sharing(sharing.BaseSharing):
             elif PathMapped is not None and row['PathMapped'] != PathMapped:
                 pass
             elif row['Owner'] == OwnerOrUser:
-                # owner has requested filter-by-user
-                if User is not None and row['User'] != User:
-                    pass
-                else:
-                    found = True
-                    break
+                found = True
+                break
             else:
                 found = True
                 break
@@ -424,7 +412,7 @@ class Sharing(sharing.BaseSharing):
 
             # TODO: locking
             if row['Owner'] == OwnerOrUser:
-                logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": Owner=%r User=%r PathOrToken=%r index=%d", OwnerOrUser, User, PathOrToken, index)
+                logger.debug("TRACE/sharing/%s/%s: Owner=%r User=%r PathOrToken=%r index=%d", ShareType, Action, OwnerOrUser, User, PathOrToken, index)
                 if Action == "disable":
                     row['EnabledByOwner'] = False
                 elif Action == "enable":
@@ -435,7 +423,7 @@ class Sharing(sharing.BaseSharing):
                     row['HiddenByOwner'] = False
                 row['TimestampUpdated'] = Timestamp
             if row['User'] == OwnerOrUser:
-                logger.debug("TRACE/sharing/" + ShareType + "/" + Action + ": User=%r PathOrToken=%r index=%d", OwnerOrUser, PathOrToken, index)
+                logger.debug("TRACE/sharing/%s/%s: User=%r PathOrToken=%r index=%d", ShareType, Action, OwnerOrUser, PathOrToken, index)
                 if Action == "disable":
                     row['EnabledByUser'] = False
                 elif Action == "enable":
@@ -452,10 +440,10 @@ class Sharing(sharing.BaseSharing):
             # readd
             self._sharing_cache.append(row)
 
-            # TODO: add locking
-            if self._write_csv(self._sharing_db_file):
-                logger.debug("TRACE: write CSV done")
-                return {"status": "success"}
+            with self._storage.acquire_lock("w", OwnerOrUser, path=self._sharing_db_file):
+                if self._write_csv(self._sharing_db_file):
+                    logger.debug("TRACE: write CSV done")
+                    return {"status": "success"}
             logger.error("sharing: cannot update CSV database")
             return {"status": "error"}
         else:
@@ -463,42 +451,44 @@ class Sharing(sharing.BaseSharing):
 
     # local functions
     def _create_empty_csv(self, file: str) -> bool:
-        with open(file, 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=sharing.DB_FIELDS_V1)
-            writer.writeheader()
+        with self._storage.acquire_lock("w", None, path=file):
+            with open(file, 'w', newline='') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=sharing.DB_FIELDS_V1)
+                writer.writeheader()
         return True
 
     def _load_csv(self, file: str) -> bool:
         logger.debug("sharing database load begin: %r", file)
-        with open(file, 'r', newline='') as csvfile:
-            reader = csv.DictReader(csvfile, fieldnames=sharing.DB_FIELDS_V1)
-            self._lines = 0
-            for row in reader:
-                # logger.debug("sharing database load read: %r", row)
-                if self._lines == 0:
-                    # header line, check
-                    for fieldname in sharing.DB_FIELDS_V1:
-                        logger.debug("sharing database load check fieldname: %r", fieldname)
-                        if fieldname not in row:
-                            logger.debug("sharing database is incompatible: %r", fil, filee)
-                            return False
-                # convert txt to bool
-                if self._lines > 0:
-                    for fieldname in sharing.DB_FIELDS_V1_BOOL:
-                        row[fieldname] = config._convert_to_bool(row[fieldname])
-                    for fieldname in sharing.DB_FIELDS_V1_INT:
-                        row[fieldname] = int(row[fieldname])
-                # check for duplicates
-                dup = False
-                for row_cached in self._sharing_cache:
-                    if row == row_cached:
-                        dup = True
-                        break
-                if dup:
-                    continue
-                # logger.debug("sharing database load add: %r", row)
-                self._sharing_cache.append(row)
-                self._lines += 1
+        with self._storage.acquire_lock("r", None):
+            with open(file, 'r', newline='') as csvfile:
+                reader = csv.DictReader(csvfile, fieldnames=sharing.DB_FIELDS_V1)
+                self._lines = 0
+                for row in reader:
+                    # logger.debug("sharing database load read: %r", row)
+                    if self._lines == 0:
+                        # header line, check
+                        for fieldname in sharing.DB_FIELDS_V1:
+                            logger.debug("sharing database load check fieldname: %r", fieldname)
+                            if fieldname not in row:
+                                logger.debug("sharing database is incompatible: %r", fil, filee)
+                                return False
+                    # convert txt to bool
+                    if self._lines > 0:
+                        for fieldname in sharing.DB_FIELDS_V1_BOOL:
+                            row[fieldname] = config._convert_to_bool(row[fieldname])
+                        for fieldname in sharing.DB_FIELDS_V1_INT:
+                            row[fieldname] = int(row[fieldname])
+                    # check for duplicates
+                    dup = False
+                    for row_cached in self._sharing_cache:
+                        if row == row_cached:
+                            dup = True
+                            break
+                    if dup:
+                        continue
+                    # logger.debug("sharing database load add: %r", row)
+                    self._sharing_cache.append(row)
+                    self._lines += 1
         logger.debug("sharing database load end: %r", file)
         return True
 
