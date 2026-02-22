@@ -264,11 +264,11 @@ class BaseSharing:
         return None
 
     # list sharings of type "map"
-    def sharing_collection_map_list(self, user: str, active: bool = True) -> Union[dict | None]:
+    def sharing_collection_map_list(self, user: str, active: bool = True) -> list[dict]:
         """ returning dict with shared collections (active==True: enabled and unhidden) or None if not found"""
         if not self.sharing_collection_by_map:
             logger.debug("TRACE/sharing_by_map: not active")
-            return None
+            return [{}]
 
         # retrieve collections which are enabled and not hidden by owner+user
         if active:
@@ -628,7 +628,7 @@ class BaseSharing:
 
             if ShareType == "token":
                 # check access Permissions
-                access = Access(self._rights, user, PathMapped)
+                access = Access(self._rights, user, str(PathMapped))  # PathMapped is mandatory
                 if not access.check("r") and "i" not in access.permissions:
                     logger.info("Add sharing-by-token: access to %r not allowed for user %r", PathMapped, user)
                     return httputils.NOT_ALLOWED
@@ -640,9 +640,10 @@ class BaseSharing:
 
                 result = self.create_sharing(
                         ShareType=ShareType,
-                        PathOrToken=token, PathMapped=PathMapped,
+                        PathOrToken=token,
+                        PathMapped=str(PathMapped), # mandatory
                         Owner=Owner, User=Owner,
-                        Permissions=Permissions,
+                        Permissions=str(Permissions), # mandantory
                         EnabledByOwner=EnabledByOwner, HiddenByOwner=HiddenByOwner,
                         Timestamp=Timestamp)
                 logger.debug("TRACE/" + api_info + ": result=%r", result)
@@ -660,7 +661,7 @@ class BaseSharing:
                     User = str(User)
 
                 # check access Permissions
-                access = Access(self._rights, Owner, PathMapped)
+                access = Access(self._rights, Owner, str(PathMapped), None)  # PathMapped is mandatory
                 if not access.check("r") and "i" not in access.permissions:
                     logger.info("Add sharing-by-map: access to path(mapped) %r not allowed for owner %r", PathMapped, Owner)
                     return httputils.NOT_ALLOWED
@@ -683,10 +684,10 @@ class BaseSharing:
                 result = self.create_sharing(
                         ShareType=ShareType,
                         PathOrToken=PathOrToken,  # verification above that it is not None
-                        PathMapped=PathMapped,
+                        PathMapped=str(PathMapped),  # mandatory
                         Owner=Owner,
                         User=User,  # verification above that it is not None
-                        Permissions=Permissions,
+                        Permissions=str(Permissions),  # mandatory
                         EnabledByOwner=EnabledByOwner, HiddenByOwner=HiddenByOwner,
                         EnabledByUser=EnabledByUser, HiddenByUser=HiddenByUser,
                         Timestamp=Timestamp)

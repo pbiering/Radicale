@@ -1801,6 +1801,7 @@ class TestSharingApiSanity(BaseTest):
                                     "response_content_on_debug": "False",
                                     "request_content_on_debug": "True"},
                         "rights": {"type": "owner_only"}})
+        form_array: Sequence[str]
         json_dict: dict
 
         path_mapped1 = "/owner/calendar1U.ics/"
