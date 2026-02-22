@@ -150,7 +150,7 @@ def xml_report(base_prefix: str, path: str, xml_request: Optional[ET.Element],
                collection: storage.BaseCollection, encoding: str,
                unlock_storage_fn: Callable[[], None],
                max_occurrence: int = 0, user: str = "", remote_addr: str = "", remote_useragent: str = "",
-               sharing: Union[dict | None] = None) -> Tuple[int, ET.Element]:
+               sharing: Union[dict, None] = None) -> Tuple[int, ET.Element]:
     """Read and answer REPORT requests that return XML.
 
     Read rfc3253-3.6 for info.
@@ -705,7 +705,7 @@ def _find_overridden(
 def xml_item_response(base_prefix: str, href: str,
                       found_props: Sequence[ET.Element] = (),
                       not_found_props: Sequence[ET.Element] = (),
-                      found_item: bool = True, sharing: Union[dict | None] = None) -> ET.Element:
+                      found_item: bool = True, sharing: Union[dict, None] = None) -> ET.Element:
     response = ET.Element(xmlutils.make_clark("D:response"))
 
     href_element = ET.Element(xmlutils.make_clark("D:href"))

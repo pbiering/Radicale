@@ -73,7 +73,7 @@ class Sharing(sharing.BaseSharing):
         self._sharing_db_file = sharing_db_file
         return True
 
-    def get_database_info(self) -> Union[dict | None]:
+    def get_database_info(self) -> Union[dict, None]:
         database_info = {'type': "csv"}
         return database_info
 
@@ -88,7 +88,7 @@ class Sharing(sharing.BaseSharing):
     def get_sharing(self,
                     ShareType: str,
                     PathOrToken: str,
-                    User: Union[str | None] = None) -> Union[dict | None]:
+                    User: Union[str, None] = None) -> Union[dict, None]:
         """ retrieve sharing target and attributes by map """
         # Lookup
         logger.debug("TRACE/sharing: lookup ShareType=%r PathOrToken=%r User=%r)", ShareType, PathOrToken, User)
@@ -137,15 +137,15 @@ class Sharing(sharing.BaseSharing):
         return None
 
     def list_sharing(self,
-                     OwnerOrUser: Union[str | None] = None,
-                     ShareType: Union[str | None] = None,
-                     PathOrToken: Union[str | None] = None,
-                     PathMapped: Union[str | None] = None,
-                     User: Union[str | None] = None,
-                     EnabledByOwner: Union[bool | None] = None,
-                     EnabledByUser: Union[bool | None] = None,
-                     HiddenByOwner: Union[bool | None] = None,
-                     HiddenByUser: Union[bool | None] = None) -> list[dict]:
+                     OwnerOrUser: Union[str, None] = None,
+                     ShareType: Union[str, None] = None,
+                     PathOrToken: Union[str, None] = None,
+                     PathMapped: Union[str, None] = None,
+                     User: Union[str, None] = None,
+                     EnabledByOwner: Union[bool, None] = None,
+                     EnabledByUser: Union[bool, None] = None,
+                     HiddenByOwner: Union[bool, None] = None,
+                     HiddenByUser: Union[bool, None] = None) -> list[dict]:
         """ retrieve sharing """
         row: dict
         index = 0
@@ -247,12 +247,12 @@ class Sharing(sharing.BaseSharing):
     def update_sharing(self,
                        ShareType: str,
                        PathOrToken: str,
-                       Owner: Union[str | None] = None,
-                       User: Union[str | None] = None,
-                       PathMapped: Union[str | None] = None,
-                       Permissions: Union[str | None] = None,
-                       EnabledByOwner: Union[bool | None] = None,
-                       HiddenByOwner:  Union[bool | None] = None,
+                       Owner: Union[str, None] = None,
+                       User: Union[str, None] = None,
+                       PathMapped: Union[str, None] = None,
+                       Permissions: Union[str, None] = None,
+                       EnabledByOwner: Union[bool, None] = None,
+                       HiddenByOwner:  Union[bool, None] = None,
                        Timestamp: int = 0) -> dict:
         """ update sharing """
         logger.debug("TRACE/sharing/%s/update: PathOrToken=%r Owner=%r PathMapped=%r", ShareType, PathOrToken, Owner, PathMapped)
@@ -315,7 +315,7 @@ class Sharing(sharing.BaseSharing):
     def delete_sharing(self,
                        ShareType: str,
                        PathOrToken: str, Owner: str,
-                       PathMapped: Union[str | None] = None) -> dict:
+                       PathMapped: Union[str, None] = None) -> dict:
         """ delete sharing """
         logger.debug("TRACE/sharing/%s/delete: PathOrToken=%r Owner=%r PathMapped=%r", ShareType, PathOrToken, Owner, PathMapped)
 
@@ -365,8 +365,8 @@ class Sharing(sharing.BaseSharing):
                        PathOrToken: str,
                        OwnerOrUser: str,
                        Action: str,
-                       PathMapped: Union[str | None] = None,
-                       User: Union[str | None] = None,
+                       PathMapped: Union[str, None] = None,
+                       User: Union[str, None] = None,
                        Timestamp: int = 0) -> dict:
         """ toggle sharing """
         row: dict

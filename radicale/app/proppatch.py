@@ -37,7 +37,7 @@ from radicale.log import logger
 
 def xml_proppatch(base_prefix: str, path: str,
                   xml_request: Optional[ET.Element],
-                  collection: storage.BaseCollection, sharing: Union[dict | None] = None) -> ET.Element:
+                  collection: storage.BaseCollection, sharing: Union[dict, None] = None) -> ET.Element:
     """Read and answer PROPPATCH requests.
 
     Read rfc4918-9.2 for info.

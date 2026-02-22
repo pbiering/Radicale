@@ -36,7 +36,7 @@ from radicale.log import logger
 def xml_propfind(base_prefix: str, path: str,
                  xml_request: Optional[ET.Element],
                  allowed_items: Iterable[Tuple[types.CollectionOrItem, str]],
-                 user: str, encoding: str, max_resource_size: int, sharing: Union[dict | None] = None) -> Optional[ET.Element]:
+                 user: str, encoding: str, max_resource_size: int, sharing: Union[dict, None] = None) -> Optional[ET.Element]:
     """Read and answer PROPFIND requests.
 
     Read rfc4918-9.1 for info.
@@ -81,7 +81,7 @@ def xml_propfind(base_prefix: str, path: str,
 def xml_propfind_response(
         base_prefix: str, path: str, item: types.CollectionOrItem,
         props: Sequence[str], user: str, encoding: str, max_resource_size: int, write: bool = False,
-        propname: bool = False, allprop: bool = False, sharing: Union[dict | None] = None) -> ET.Element:
+        propname: bool = False, allprop: bool = False, sharing: Union[dict, None] = None) -> ET.Element:
     """Build and return a PROPFIND response."""
     if propname and allprop or (props and (propname or allprop)):
         raise ValueError("Only use one of props, propname and allprops")

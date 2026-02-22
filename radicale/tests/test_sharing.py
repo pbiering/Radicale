@@ -48,13 +48,13 @@ class TestSharingApiSanity(BaseTest):
             f.write(htpasswd_content)
 
     # Helper functions
-    def _sharing_api(self, sharing_type: str, action: str, check: int, login: Union[str | None], data: str, content_type: str, accept: Union[str | None]) -> Tuple[int, Dict[str, str], str]:
+    def _sharing_api(self, sharing_type: str, action: str, check: int, login: Union[str, None], data: str, content_type: str, accept: Union[str, None]) -> Tuple[int, Dict[str, str], str]:
         path_base = "/.sharing/v1/" + sharing_type + "/"
         _, headers, answer = self.request("POST", path_base + action, check=check, login=login, data=data, content_type=content_type, accept=accept)
         logging.info("received answer:\n%s", "\n".join(answer.splitlines()))
         return _, headers, answer
 
-    def _sharing_api_form(self, sharing_type: str, action: str, check: int, login: Union[str | None], form_array: Sequence[str], accept: Union[str | None] = None) -> Tuple[int, Dict[str, str], str]:
+    def _sharing_api_form(self, sharing_type: str, action: str, check: int, login: Union[str, None], form_array: Sequence[str], accept: Union[str, None] = None) -> Tuple[int, Dict[str, str], str]:
         data = "&".join(form_array)
         content_type = "application/x-www-form-urlencoded"
         if accept is None:
@@ -62,7 +62,7 @@ class TestSharingApiSanity(BaseTest):
         _, headers, answer = self._sharing_api(sharing_type, action, check, login, data, content_type, accept)
         return _, headers, answer
 
-    def _sharing_api_json(self, sharing_type: str, action: str, check: int, login: Union[str | None], json_dict: dict, accept: Union[str | None] = None) -> Tuple[int, Dict[str, str], str]:
+    def _sharing_api_json(self, sharing_type: str, action: str, check: int, login: Union[str, None], json_dict: dict, accept: Union[str, None] = None) -> Tuple[int, Dict[str, str], str]:
         data = json.dumps(json_dict)
         content_type = "application/json"
         if accept is None:

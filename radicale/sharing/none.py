@@ -26,13 +26,13 @@ class Sharing(sharing.BaseSharing):
         """ dummy initialization """
         return False
 
-    def get_sharing_collection_by_token(self, token: str) -> Union[dict | None]:
+    def get_sharing_collection_by_token(self, token: str) -> Union[dict, None]:
         """ retrieve target and attributs by token """
         # default
         logger.debug("TRACE/sharing_by_token: 'none' cannot provide any map for token: %r", token)
         return None
 
-    def get_sharing_collection_by_map(self, path) -> Union[dict | None]:
+    def get_sharing_collection_by_map(self, path) -> Union[dict, None]:
         """ retrieve target and attributs by map """
         logger.debug("TRACE/sharing_by_map: 'none' cannot provide any map for path: %r", path)
         return {"mapped": False}

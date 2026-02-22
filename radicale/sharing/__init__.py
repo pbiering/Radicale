@@ -83,7 +83,6 @@ def load(configuration: "config.Configuration") -> "BaseSharing":
 
 class BaseSharing:
 
-    configuration: config.Configuration
     _storage: storage.BaseStorage
     _rights: rights.BaseRights
     _enabled: bool = False
@@ -144,22 +143,22 @@ class BaseSharing:
         return False
 
     def list_sharing(self,
-                     OwnerOrUser: Union[str | None] = None,
-                     ShareType: Union[str | None] = None,
-                     PathOrToken: Union[str | None] = None,
-                     PathMapped: Union[str | None] = None,
-                     User: Union[str | None] = None,
-                     EnabledByOwner: Union[bool | None] = None,
-                     EnabledByUser: Union[bool | None] = None,
-                     HiddenByOwner: Union[bool | None] = None,
-                     HiddenByUser:  Union[bool | None] = None) -> list[dict]:
+                     OwnerOrUser: Union[str, None] = None,
+                     ShareType: Union[str, None] = None,
+                     PathOrToken: Union[str, None] = None,
+                     PathMapped: Union[str, None] = None,
+                     User: Union[str, None] = None,
+                     EnabledByOwner: Union[bool, None] = None,
+                     EnabledByUser: Union[bool, None] = None,
+                     HiddenByOwner: Union[bool, None] = None,
+                     HiddenByUser:  Union[bool, None] = None) -> list[dict]:
         """ retrieve sharing """
         return []
 
     def get_sharing(self,
                     ShareType: str,
                     PathOrToken: str,
-                    User: Union[str | None] = None) -> Union[dict | None]:
+                    User: Union[str, None] = None) -> Union[dict, None]:
         """ retrieve sharing target and attributes by map """
         return {"status": "not-implemented"}
 
@@ -177,12 +176,12 @@ class BaseSharing:
     def update_sharing(self,
                        ShareType: str,
                        PathOrToken: str,
-                       Owner: Union[str | None] = None,
-                       User: Union[str | None] = None,
-                       PathMapped: Union[str | None] = None,
-                       Permissions: Union[str | None] = None,
-                       EnabledByOwner: Union[bool | None] = None,
-                       HiddenByOwner:  Union[bool | None] = None,
+                       Owner: Union[str, None] = None,
+                       User: Union[str, None] = None,
+                       PathMapped: Union[str, None] = None,
+                       Permissions: Union[str, None] = None,
+                       EnabledByOwner: Union[bool, None] = None,
+                       HiddenByOwner:  Union[bool, None] = None,
                        Timestamp: int = 0) -> dict:
         """ update sharing """
         return {"status": "not-implemented"}
@@ -191,7 +190,7 @@ class BaseSharing:
                        ShareType: str,
                        PathOrToken: str,
                        Owner: str,
-                       PathMapped: Union[str | None] = None) -> dict:
+                       PathMapped: Union[str, None] = None) -> dict:
         """ delete sharing """
         return {"status": "not-implemented"}
 
@@ -200,8 +199,8 @@ class BaseSharing:
                        PathOrToken: str,
                        OwnerOrUser: str,
                        Action: str,
-                       PathMapped: Union[str | None] = None,
-                       User: Union[str | None] = None,
+                       PathMapped: Union[str, None] = None,
+                       User: Union[str, None] = None,
                        Timestamp: int = 0) -> dict:
         """ toggle sharing """
         return {"status": "not-implemented"}
@@ -239,7 +238,7 @@ class BaseSharing:
         logger.info("sharing database verification content successful")
         return True
 
-    def sharing_collection_resolver(self, path: str, user: str) -> Union[dict | None]:
+    def sharing_collection_resolver(self, path: str, user: str) -> Union[dict, None]:
         """ returning dict with PathMapped, Owner, Permissions or None if not found"""
         if self.sharing_collection_by_token:
             result = self.sharing_collection_by_token_resolver(path)
@@ -291,7 +290,7 @@ class BaseSharing:
         return shared_collection_list
 
     # internal sharing functions
-    def sharing_collection_by_token_resolver(self, path) -> Union[dict | None]:
+    def sharing_collection_by_token_resolver(self, path) -> Union[dict, None]:
         """ returning dict with PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_token:
             logger.debug("TRACE/sharing_by_token: check path: %r", path)
@@ -314,7 +313,7 @@ class BaseSharing:
             logger.debug("TRACE/sharing_by_token: not active")
             return None
 
-    def sharing_collection_by_map_resolver(self, path: str, user: str) -> Union[dict | None]:
+    def sharing_collection_by_map_resolver(self, path: str, user: str) -> Union[dict, None]:
         """ returning dict with PathMapped, Owner, Permissions or None if invalid"""
         if self.sharing_collection_by_map:
             logger.debug("TRACE/sharing/resolver/map: check path: %r", path)
@@ -481,15 +480,15 @@ class BaseSharing:
             return httputils.bad_request("Output format not supported")
 
         # parameters default
-        PathOrToken: Union[str | None] = None
-        PathMapped: Union[str | None] = None
+        PathOrToken: Union[str, None] = None
+        PathMapped: Union[str, None] = None
         Owner: str = user
-        User: Union[str | None] = None
-        Permissions: Union[str | None] = None  # no permissions by default
-        EnabledByOwner: Union[bool | None] = None
-        HiddenByOwner:  Union[bool | None] = None
-        EnabledByUser:  Union[bool | None] = None
-        HiddenByUser:   Union[bool | None] = None
+        User: Union[str, None] = None
+        Permissions: Union[str, None] = None  # no permissions by default
+        EnabledByOwner: Union[bool, None] = None
+        HiddenByOwner:  Union[bool, None] = None
+        EnabledByUser:  Union[bool, None] = None
+        HiddenByUser:   Union[bool, None] = None
 
         # parameters sanity check
         for key in request_data:
