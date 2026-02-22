@@ -465,12 +465,11 @@ class ApplicationPartPropfind(ApplicationBase):
                         c_user = sharing['Owner']
                         c_permissions_filter = sharing['Permissions']
                         logger.debug("TRACE/PROPFIND: test shared collection: PathOrToken=%r PathMapped=%r Owner=%r Permissions=%s", c_share, c_path, c_user, c_permissions_filter)
-                        access = Access(self._rights, c_user, c_path, c_permissions_filter)
-                        if not access.check("r"):
+                        c_access = Access(self._rights, c_user, c_path, c_permissions_filter)
+                        if not c_access.check("r"):
                             logger.debug("TRACE/PROPFIND: skip shared collection: PathOrToken=%r PathMapped=%r Owner=%r Permissions=%s (permissions not matching)", c_share, c_path, c_user, c_permissions_filter)
                             continue
                         logger.debug("TRACE/PROPFIND: append shared collection: PathOrToken=%r PathMapped=%r Owner=%r", c_share, c_path, c_user)
-                        c_parent_path = pathutils.parent_path(c_path)
                         with self._storage.acquire_lock("r", c_user):
                             c_items_iter = iter(self._storage.discover(c_path, "0"))
                             c_allowed_items = list(self._collect_allowed_items(c_items_iter, c_user))

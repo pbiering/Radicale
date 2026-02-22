@@ -141,16 +141,16 @@ class TestSharingApiSanity(BaseTest):
         json_dict = {}
         _, headers, answer = self._sharing_api_json("all", "info", check=200, login="owner:ownerpw", json_dict=json_dict)
         answer_dict = json.loads(answer)
-        assert answer_dict['FeatureEnabledCollectionByMap'] == True
-        assert answer_dict['FeatureEnabledCollectionByToken'] == False
-        assert answer_dict['PermittedCreateCollectionByMap'] == True
-        assert answer_dict['PermittedCreateCollectionByToken'] == True
+        assert answer_dict['FeatureEnabledCollectionByMap'] is True
+        assert answer_dict['FeatureEnabledCollectionByToken'] is False
+        assert answer_dict['PermittedCreateCollectionByMap'] is True
+        assert answer_dict['PermittedCreateCollectionByToken'] is True
 
         logging.info("\n*** check API hook: info/map")
         json_dict = {}
         _, headers, answer = self._sharing_api_json("map", "info", check=200, login="owner:ownerpw", json_dict=json_dict)
         answer_dict = json.loads(answer)
-        assert answer_dict['FeatureEnabledCollectionByMap'] == True
+        assert answer_dict['FeatureEnabledCollectionByMap'] is True
         assert 'FeatureEnabledCollectionByToken' not in answer_dict
         assert 'PermittedCreateCollectionByToken' not in answer_dict
 
@@ -174,7 +174,7 @@ class TestSharingApiSanity(BaseTest):
         json_dict = {}
         _, headers, answer = self._sharing_api_json("token", "info", check=200, login="owner:ownerpw", json_dict=json_dict)
         answer_dict = json.loads(answer)
-        assert answer_dict['FeatureEnabledCollectionByToken'] == True
+        assert answer_dict['FeatureEnabledCollectionByToken'] is True
         assert 'FeatureEnabledCollectionByMap' not in answer_dict
         assert 'PermittedCreateCollectionByMap' not in answer_dict
 
@@ -389,7 +389,7 @@ class TestSharingApiSanity(BaseTest):
             answer_dict = json.loads(answer)
             assert answer_dict['Status'] == "success"
             assert answer_dict['Lines'] == 1
-            assert answer_dict['Content'][0]['EnabledByOwner'] == False
+            assert answer_dict['Content'][0]['EnabledByOwner'] is False
 
             logging.info("\n*** enable token#2 (json->json)")
             json_dict = {}
@@ -434,7 +434,7 @@ class TestSharingApiSanity(BaseTest):
             answer_dict = json.loads(answer)
             assert answer_dict['Status'] == "success"
             assert answer_dict['Lines'] == 1
-            assert answer_dict['Content'][0]['HiddenByOwner'] == False
+            assert answer_dict['Content'][0]['HiddenByOwner'] is False
 
             logging.info("\n*** delete token#2 (json->json)")
             json_dict = {}
@@ -672,10 +672,10 @@ class TestSharingApiSanity(BaseTest):
             assert answer_dict['Content'][0]['ShareType'] == "map"
             assert answer_dict['Content'][0]['Owner'] == "owner"
             assert answer_dict['Content'][0]['User'] == "user"
-            assert answer_dict['Content'][0]['EnabledByOwner'] == False
-            assert answer_dict['Content'][0]['EnabledByUser'] == False
-            assert answer_dict['Content'][0]['HiddenByOwner'] == True
-            assert answer_dict['Content'][0]['HiddenByUser'] == True
+            assert answer_dict['Content'][0]['EnabledByOwner'] is False
+            assert answer_dict['Content'][0]['EnabledByUser'] is False
+            assert answer_dict['Content'][0]['HiddenByOwner'] is True
+            assert answer_dict['Content'][0]['HiddenByUser'] is True
             assert answer_dict['Content'][0]['Permissions'] == "r"
 
             logging.info("\n*** enable map by owner for owner (json->json) -> 403")
@@ -1199,7 +1199,6 @@ class TestSharingApiSanity(BaseTest):
         path_mapped2 = path_mapped_base + "calendarRH2.ics/"
         path_shared = path_user_base + "calendarRH-shared-by-owner.ics/"
         path_mapped_item = os.path.join(path_mapped, "event1.ics")
-        path_shared_item = os.path.join(path_shared, "event1.ics")
         path_user_item = os.path.join(path_user, "event2.ics")
 
         logging.info("\n*** prepare and test access")
@@ -1321,7 +1320,6 @@ class TestSharingApiSanity(BaseTest):
             assert isinstance(response, dict)
             response = responses[path_shared]
             assert isinstance(response, dict)
-
 
     def test_sharing_api_map_propfind(self) -> None:
         """share-by-map API usage tests related to propfind."""
@@ -1925,7 +1923,6 @@ class TestSharingApiSanity(BaseTest):
         path_user1_shared1 = "/user1/calendarLFo1-shared.ics/"
         path_user1_shared2 = "/user1/calendarLFo2-shared.ics/"
         path_user2_shared1 = "/user2/calendarLFo1-shared.ics/"
-        path_user2_shared2 = "/user2/calendarLFo2-shared.ics/"
         path_owner1 = "/owner1/calendarLFo1.ics/"
         path_owner2 = "/owner2/calendarLFo2.ics/"
 
@@ -2067,9 +2064,7 @@ class TestSharingApiSanity(BaseTest):
         path_user1 = "/user1/calendarCCu1.ics/"
         path_user2 = "/user2/calendarCCu2.ics/"
         path_user1_shared1 = "/user1/calendarCCo1-shared.ics/"
-        path_user1_shared2 = "/user1/calendarCCo2-shared.ics/"
         path_user2_shared1 = "/user2/calendarCCo1-shared.ics/"
-        path_user2_shared2 = "/user2/calendarCCo2-shared.ics/"
         path_owner1 = "/owner1/calendarCCo1.ics/"
         path_owner2 = "/owner2/calendarCCo2.ics/"
 

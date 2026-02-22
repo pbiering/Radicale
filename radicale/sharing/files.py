@@ -27,6 +27,7 @@ from radicale.log import logger
 
 DB_VERSION: str = "1"
 
+
 class Sharing(sharing.BaseSharing):
     _sharing_db_path_ShareType: dict = {}
 
@@ -109,10 +110,10 @@ class Sharing(sharing.BaseSharing):
 
             if User is not None and row['User'] != User:
                 return None
-            elif row['EnabledByOwner'] != True:
+            elif row['EnabledByOwner'] is not True:
                 return None
             elif row['ShareType'] == "map":
-                if row['EnabledByUser'] != True:
+                if row['EnabledByUser'] is not True:
                     return None
 
             PathMapped = row['PathMapped']
@@ -143,8 +144,6 @@ class Sharing(sharing.BaseSharing):
                      HiddenByOwner: Union[bool | None] = None,
                      HiddenByUser: Union[bool | None] = None) -> list[dict]:
         """ retrieve sharing """
-        row: dict
-        index = 0
         result = []
 
         logger.debug("TRACE/sharing/list/called: ShareType=%r OwnerOrUser=%r User=%r PathOrToken=%r PathMapped=%r HiddenByOwner=%s HiddenByUser=%s", ShareType, OwnerOrUser, User, PathOrToken, PathMapped, HiddenByOwner, HiddenByUser)
@@ -262,7 +261,7 @@ class Sharing(sharing.BaseSharing):
             return {"status": "not-found"}
 
         # read content
-        with self._storage.acquire_lock("w", Owner,path=sharing_config_file):
+        with self._storage.acquire_lock("w", Owner, path=sharing_config_file):
             # read file
             with open(sharing_config_file, "rb") as fb:
                 (version, row) = pickle.load(fb)
@@ -292,7 +291,7 @@ class Sharing(sharing.BaseSharing):
             # update timestamp
             row["TimestampUpdated"] = Timestamp
 
-            logger.debug("TRACE/sharing/%s/update: adj  row=%r", ShareType,row)
+            logger.debug("TRACE/sharing/%s/update: adj  row=%r", ShareType, row)
 
             try:
                 # write file
@@ -361,7 +360,7 @@ class Sharing(sharing.BaseSharing):
             return {"status": "not-found"}
 
         # read content
-        with self._storage.acquire_lock("w", OwnerOrUser,path=sharing_config_file):
+        with self._storage.acquire_lock("w", OwnerOrUser, path=sharing_config_file):
             # read file
             with open(sharing_config_file, "rb") as fb:
                 (version, row) = pickle.load(fb)
@@ -440,7 +439,7 @@ class Sharing(sharing.BaseSharing):
                     for fieldname in sharing.DB_FIELDS_V1:
                         logger.debug("sharing database load check fieldname: %r", fieldname)
                         if fieldname not in row:
-                            logger.debug("sharing database is incompatible: %r", fil, filee)
+                            logger.debug("sharing database is incompatible: %r", file)
                             return False
                 # convert txt to bool
                 if self._lines > 0:
@@ -467,5 +466,3 @@ class Sharing(sharing.BaseSharing):
             writer = csv.DictWriter(csvfile, fieldnames=sharing.DB_FIELDS_V1)
             writer.writerows(self._sharing_cache)
         return True
-
-

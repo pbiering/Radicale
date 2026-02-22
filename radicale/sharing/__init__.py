@@ -17,7 +17,6 @@
 import base64
 import io
 import json
-import posixpath
 import re
 import socket
 import uuid
@@ -105,7 +104,7 @@ class BaseSharing:
         logger.info("sharing.collection_by_map  : %s", self.sharing_collection_by_map)
         logger.info("sharing.collection_by_token: %s", self.sharing_collection_by_token)
 
-        if (self.sharing_collection_by_map == False and self.sharing_collection_by_token == False):
+        if ((self.sharing_collection_by_map is False) and (self.sharing_collection_by_token is False)):
             logger.info("sharing disabled as no feature is enabled")
             self._enabled = False
             return
@@ -345,9 +344,9 @@ class BaseSharing:
 
     # POST API
     def post(self, environ: types.WSGIEnviron, base_prefix: str, path: str, user: str) -> types.WSGIResponse:
-        #Late import to avoid circular dependency in config
+        # Late import to avoid circular dependency in config
         from radicale.app.base import Access
-        
+
         """POST request.
 
         ``base_prefix`` is sanitized and never ends with "/".
@@ -522,13 +521,12 @@ class BaseSharing:
                     logger.error(api_info + ": unsupported " + key)
                     return httputils.bad_request("Invalid value for User")
 
-
         # check for mandatory parameters
         if 'PathMapped' not in request_data:
             if action == 'info':
                 # ignored
                 pass
-            elif action =="list":
+            elif action == "list":
                 # optional
                 pass
             else:
@@ -711,7 +709,7 @@ class BaseSharing:
                 logger.info(api_info + "(success): %r (Permissions=%r token=%r)", PathMapped, Permissions, token)
                 answer['PathOrToken'] = token
 
-        # action: update 
+        # action: update
         elif action == "update":
             logger.debug("TRACE/" + api_info + ": start")
 
@@ -802,10 +800,10 @@ class BaseSharing:
         elif action == "info":
             answer['Status'] = "success"
             if ShareType in ["all", "map"]:
-                answer['FeatureEnabledCollectionByMap'] = self.sharing_collection_by_map;
+                answer['FeatureEnabledCollectionByMap'] = self.sharing_collection_by_map
                 answer['PermittedCreateCollectionByMap'] = True # TODO toggle per permission, default?
             if ShareType in ["all", "token"]:
-                answer['FeatureEnabledCollectionByToken'] = self.sharing_collection_by_token;
+                answer['FeatureEnabledCollectionByToken'] = self.sharing_collection_by_token
                 answer['PermittedCreateCollectionByToken'] = True # TODO toggle per permission, default?
 
         # action: TOGGLE

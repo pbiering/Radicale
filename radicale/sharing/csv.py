@@ -106,10 +106,10 @@ class Sharing(sharing.BaseSharing):
                 pass
             elif User is not None and row['User'] != User:
                 pass
-            elif row['EnabledByOwner'] != True:
+            elif row['EnabledByOwner'] is not True:
                 pass
             elif row['ShareType'] == "map":
-                if row['EnabledByUser'] != True:
+                if row['EnabledByUser'] is not True:
                     pass
                 else:
                     found = True
@@ -470,7 +470,7 @@ class Sharing(sharing.BaseSharing):
                         for fieldname in sharing.DB_FIELDS_V1:
                             logger.debug("sharing database load check fieldname: %r", fieldname)
                             if fieldname not in row:
-                                logger.debug("sharing database is incompatible: %r", fil, filee)
+                                logger.debug("sharing database is incompatible: %r", file)
                                 return False
                     # convert txt to bool
                     if self._lines > 0:
