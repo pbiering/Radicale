@@ -299,14 +299,14 @@
 [sharing]
 
 # Sharing database type
-# Value: none | csv | sqlite
+# Value: none | csv | files
 #type = none
 
 # Sharing database path for type 'csv'
-#database_filename = (filesystem_folder)/collection-db/sharing.csv
+#database_path = (filesystem_folder)/collection-db/sharing.csv
 
-# Sharing database paths for type 'sqlite'
-#database_filename = (filesystem_folder)/collection-db/sharing.sqlite
+# Sharing database path for type 'files'
+#database_path = (filesystem_folder)/collection-db/files
 
 # Share collection by map
 #collection_by_map = false
