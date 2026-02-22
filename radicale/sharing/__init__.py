@@ -26,7 +26,8 @@ from http import client
 from typing import Sequence, Union
 from urllib.parse import parse_qs
 
-from radicale import config, httputils, pathutils, rights, storage, types, utils
+from radicale import (config, httputils, pathutils, rights, storage, types,
+                      utils)
 from radicale.log import logger
 
 INTERNAL_TYPES: Sequence[str] = ("csv", "files", "none")

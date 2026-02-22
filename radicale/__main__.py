@@ -33,7 +33,8 @@ import sys
 from types import FrameType
 from typing import List, Optional, cast
 
-from radicale import VERSION, config, item, log, server, sharing, storage, types
+from radicale import (VERSION, config, item, log, server, sharing, storage,
+                      types)
 from radicale.log import logger
 
 
