@@ -84,7 +84,7 @@ def load(configuration: "config.Configuration") -> "BaseSharing":
 class BaseSharing:
 
     configuration: config.Configuration
-    _storage: multifilesystem.Storage
+    _storage: storage.BaseStorage
     _rights: rights.BaseRights
     _enabled: bool = False
 
