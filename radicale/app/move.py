@@ -67,7 +67,6 @@ class ApplicationPartMove(ApplicationBase):
                 # Remote destination server, not supported
                 return httputils.REMOTE_DESTINATION
 
-        to_user = user
         permissions_filter = None
         if self._sharing._enabled:
             # Sharing by token or map (if enabled)
@@ -86,6 +85,7 @@ class ApplicationPartMove(ApplicationBase):
                            "start with base prefix", to_path, path)
             return httputils.NOT_ALLOWED
         to_path = to_path[len(base_prefix):]
+        to_user = user
         to_permissions_filter = None
         if self._sharing._enabled:
             # Sharing by token or map (if enabled)
