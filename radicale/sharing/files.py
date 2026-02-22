@@ -14,13 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with Radicale.  If not, see <http://www.gnu.org/licenses/>.
 
-import csv
 import os
 import pickle
 import urllib
 from typing import Union
 
-from radicale import config, sharing
+from radicale import sharing
 from radicale.log import logger
 
 """ File 'database' based sharing by token or map """
