@@ -453,8 +453,8 @@ class ApplicationPartPropfind(ApplicationBase):
             # put item back
             items_iter = itertools.chain([item], items_iter)
             allowed_items = list(self._collect_allowed_items(items_iter, user))
-        if http_depth == "1":
-            if self._sharing._enabled:
+        if self._sharing._enabled:
+            if http_depth == "1":
                 logger.debug("TRACE/PROPFIND: get shared collections")
                 # check for shared collections
                 collections_shared_map = self._sharing.sharing_collection_map_list(user)
