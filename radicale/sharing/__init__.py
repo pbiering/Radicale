@@ -112,13 +112,15 @@ class BaseSharing:
         else:
             self._enabled = True
 
+        # database tasks
         self.sharing_db_type = configuration.get("sharing", "type")
         logger.info("sharing.db_type: %s", self.sharing_db_type)
-        # database tasks
 
         try:
             if self.init_database() is False:
-                exit(1)
+                logger.info("sharing disabled as no database is active")
+                self._enabled = False
+                return
         except Exception as e:
             logger.error("sharing database cannot be initialized: %r", e)
             exit(1)

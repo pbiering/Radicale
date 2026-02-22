@@ -24,7 +24,7 @@ class Sharing(sharing.BaseSharing):
 
     def init_database(self) -> bool:
         """ dummy initialization """
-        return True
+        return False
 
     def get_sharing_collection_by_token(self, token: str) -> Union[dict | None]:
         """ retrieve target and attributs by token """
