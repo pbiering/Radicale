@@ -68,6 +68,7 @@ class ApplicationPartMove(ApplicationBase):
                 return httputils.REMOTE_DESTINATION
 
         permissions_filter = None
+        to_user = user
         if self._sharing._enabled:
             # Sharing by token or map (if enabled)
             sharing = self._sharing.sharing_collection_resolver(path, user)
@@ -85,7 +86,6 @@ class ApplicationPartMove(ApplicationBase):
                            "start with base prefix", to_path, path)
             return httputils.NOT_ALLOWED
         to_path = to_path[len(base_prefix):]
-        to_user = user
         to_permissions_filter = None
         if self._sharing._enabled:
             # Sharing by token or map (if enabled)
