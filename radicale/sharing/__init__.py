@@ -83,8 +83,10 @@ def load(configuration: "config.Configuration") -> "BaseSharing":
 
 class BaseSharing:
 
-    configuration: "config.Configuration"
+    configuration: config.Configuration
+    _storage: multifilesystem.Storage
     _rights: rights.BaseRights
+    _enabled: bool = False
 
     def __init__(self, configuration: "config.Configuration") -> None:
         """Initialize Sharing.
@@ -102,6 +104,14 @@ class BaseSharing:
         self.sharing_collection_by_token = configuration.get("sharing", "collection_by_token")
         logger.info("sharing.collection_by_map  : %s", self.sharing_collection_by_map)
         logger.info("sharing.collection_by_token: %s", self.sharing_collection_by_token)
+
+        if (self.sharing_collection_by_map == False and self.sharing_collection_by_token == False):
+            logger.info("sharing disabled as no feature is enabled")
+            self._enabled = False
+            return
+        else:
+            self._enabled = True
+
         self.sharing_db_type = configuration.get("sharing", "type")
         logger.info("sharing.db_type: %s", self.sharing_db_type)
         # database tasks

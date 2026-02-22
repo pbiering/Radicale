@@ -417,17 +417,17 @@ class ApplicationPartPropfind(ApplicationBase):
                     path: str, user: str, remote_host: str, remote_useragent: str) -> types.WSGIResponse:
         """Manage PROPFIND request."""
         http_depth = environ.get("HTTP_DEPTH", "0")
-        # Sharing by token or map (only for depth==0)
-        sharing = self._sharing.sharing_collection_resolver(path, user)
-        if sharing:
-            # overwrite and run through extended permission check
-            path = sharing['PathMapped']
-            user = sharing['Owner']
-            permissions_filter = sharing['Permissions']
-            access = Access(self._rights, user, path, permissions_filter)
-        else:
-            # default permission check
-            access = Access(self._rights, user, path)
+        permissions_filter = None
+        sharing = None
+        if self._sharing._enabled:
+            # Sharing by token or map (if enabled)
+            sharing = self._sharing.sharing_collection_resolver(path, user)
+            if sharing:
+                # overwrite and run through extended permission check
+                path = sharing['PathMapped']
+                user = sharing['Owner']
+                permissions_filter = sharing['Permissions']
+        access = Access(self._rights, user, path, permissions_filter)
         if not access.check("r"):
             return httputils.NOT_ALLOWED
         try:
@@ -454,26 +454,27 @@ class ApplicationPartPropfind(ApplicationBase):
             items_iter = itertools.chain([item], items_iter)
             allowed_items = list(self._collect_allowed_items(items_iter, user))
         if http_depth == "1":
-            logger.debug("TRACE/PROPFIND: get shared collections")
-            # check for shared collections
-            collections_shared_map = self._sharing.sharing_collection_map_list(user)
-            if collections_shared_map:
-                for sharing in collections_shared_map:
-                    c_share = sharing['PathOrToken']
-                    c_path = sharing['PathMapped']
-                    c_user = sharing['Owner']
-                    c_permissions_filter = sharing['Permissions']
-                    logger.debug("TRACE/PROPFIND: test shared collection: PathOrToken=%r PathMapped=%r Owner=%r Permissions=%s", c_share, c_path, c_user, c_permissions_filter)
-                    access = Access(self._rights, c_user, c_path, c_permissions_filter)
-                    if not access.check("r"):
-                        logger.debug("TRACE/PROPFIND: skip shared collection: PathOrToken=%r PathMapped=%r Owner=%r Permissions=%s (permissions not matching)", c_share, c_path, c_user, c_permissions_filter)
-                        continue
-                    logger.debug("TRACE/PROPFIND: append shared collection: PathOrToken=%r PathMapped=%r Owner=%r", c_share, c_path, c_user)
-                    c_parent_path = pathutils.parent_path(c_path)
-                    with self._storage.acquire_lock("r", c_user):
-                        c_items_iter = iter(self._storage.discover(c_path, "0"))
-                        c_allowed_items = list(self._collect_allowed_items(c_items_iter, c_user))
-                    allowed_items = allowed_items + c_allowed_items
+            if self._sharing._enabled:
+                logger.debug("TRACE/PROPFIND: get shared collections")
+                # check for shared collections
+                collections_shared_map = self._sharing.sharing_collection_map_list(user)
+                if collections_shared_map:
+                    for sharing in collections_shared_map:
+                        c_share = sharing['PathOrToken']
+                        c_path = sharing['PathMapped']
+                        c_user = sharing['Owner']
+                        c_permissions_filter = sharing['Permissions']
+                        logger.debug("TRACE/PROPFIND: test shared collection: PathOrToken=%r PathMapped=%r Owner=%r Permissions=%s", c_share, c_path, c_user, c_permissions_filter)
+                        access = Access(self._rights, c_user, c_path, c_permissions_filter)
+                        if not access.check("r"):
+                            logger.debug("TRACE/PROPFIND: skip shared collection: PathOrToken=%r PathMapped=%r Owner=%r Permissions=%s (permissions not matching)", c_share, c_path, c_user, c_permissions_filter)
+                            continue
+                        logger.debug("TRACE/PROPFIND: append shared collection: PathOrToken=%r PathMapped=%r Owner=%r", c_share, c_path, c_user)
+                        c_parent_path = pathutils.parent_path(c_path)
+                        with self._storage.acquire_lock("r", c_user):
+                            c_items_iter = iter(self._storage.discover(c_path, "0"))
+                            c_allowed_items = list(self._collect_allowed_items(c_items_iter, c_user))
+                        allowed_items = allowed_items + c_allowed_items
         headers = {"DAV": httputils.DAV_HEADERS,
                    "Content-Type": "text/xml; charset=%s" % self._encoding}
         xml_answer = xml_propfind(base_prefix, path, xml_content,

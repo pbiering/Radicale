@@ -812,17 +812,17 @@ class ApplicationPartReport(ApplicationBase):
     def do_REPORT(self, environ: types.WSGIEnviron, base_prefix: str,
                   path: str, user: str, remote_host: str, remote_useragent: str) -> types.WSGIResponse:
         """Manage REPORT request."""
-        # Sharing by token or map
-        sharing = self._sharing.sharing_collection_resolver(path, user)
-        if sharing:
-            # overwrite and run through extended permission check
-            path = sharing['PathMapped']
-            user = sharing['Owner']
-            permissions_filter = sharing['Permissions']
-            access = Access(self._rights, user, path, permissions_filter)
-        else:
-            # default permission check
-            access = Access(self._rights, user, path)
+        permissions_filter = None
+        sharing = None
+        if self._sharing._enabled:
+            # Sharing by token or map (if enabled)
+            sharing = self._sharing.sharing_collection_resolver(path, user)
+            if sharing:
+                # overwrite and run through extended permission check
+                path = sharing['PathMapped']
+                user = sharing['Owner']
+                permissions_filter = sharing['Permissions']
+        access = Access(self._rights, user, path, permissions_filter)
         if not access.check("r"):
             return httputils.NOT_ALLOWED
         try:
