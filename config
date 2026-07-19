@@ -211,7 +211,7 @@
 [group]
 
 # Group lookup method
-# Value: none | htgroup
+# Value: none | auth_type | htgroup
 type = none
 
 # Htgroup filename
